@@ -28,7 +28,7 @@ Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 
 2. Tsu Helper script can be found here (just choose any one)
   - https://github.com/noplanman/tsu-helper/raw/master/Tsu_Helper.user.js
-  - https://greasyfork.org/en/scripts/xxxx-tsu-helper
+  - https://greasyfork.org/en/scripts/6372-tsu-helper
   - https://openuserjs.org/scripts/noplanman/Tsu_Helper
 
 ###With Bookmarklet (to give it a try)

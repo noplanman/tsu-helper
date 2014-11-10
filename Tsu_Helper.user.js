@@ -34,7 +34,7 @@ $( document ).ready(function () {
   var maxMentions = 10;
 
   // URL where to get the newest script.
-  var scriptURL = 'https://greasyfork.org/scripts/xxxx-tsu-helper/code/Tsu%20Helper.user.js';
+  var scriptURL = 'https://greasyfork.org/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js';
 
   var localVersion = 1.0;
   var getVersionAPIURL = 'https://api.github.com/repos/noplanman/tsu-helper/contents/VERSION';
