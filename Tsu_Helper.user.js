@@ -27,7 +27,7 @@ $( document ).ready(function () {
 
 
   // Output console messages?
-  var debug = true;
+  var debug = false;
 
   // Define the maximum number of hashtags and mentions allowed.
   var maxHashtags = 10;
