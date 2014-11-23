@@ -2,7 +2,7 @@
 
 Author: Armando Lüscher
 
-Version: 1.0 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+Version: 1.1 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 
 Short Link for sharing: https://j.mp/tsu-helper
 
@@ -10,6 +10,8 @@ Short Link for sharing: https://j.mp/tsu-helper
 
 Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 
+- NEW! Search for pending friend requests in the Followers and Following tabs of your profile page.
+- NEW! Temporary fix to autofocus text input field for messaging.
 - Autofocus the message input to instantly start typing a post.
 - Autofocus the title input field when adding a title.
 - Open single posts by double clicking their header. (When holding the Shift key, a new window/tab opens)

@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     1.0
+// @version     1.1
 // @author      Armando Lüscher
 // @grant       none
 // ==/UserScript==
@@ -26,6 +26,9 @@ $( document ).ready(function () {
   function base64_decode(e){var t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";var n="";var r,i,s;var o,u,a,f;var l=0;e=e.replace(/[^A-Za-z0-9\+\/\=]/g,"");while(l<e.length){o=t.indexOf(e.charAt(l++));u=t.indexOf(e.charAt(l++));a=t.indexOf(e.charAt(l++));f=t.indexOf(e.charAt(l++));r=o<<2|u>>4;i=(u&15)<<4|a>>2;s=(a&3)<<6|f;n=n+String.fromCharCode(r);if(a!=64){n=n+String.fromCharCode(i)}if(f!=64){n=n+String.fromCharCode(s)}}return n}
 
 
+  // Add the required CSS rules.
+  addCSS();
+
   // Output console messages?
   var debug = false;
 
@@ -33,29 +36,41 @@ $( document ).ready(function () {
   var maxHashtags = 10;
   var maxMentions = 10;
 
+  // Cards per page request of Followers / Following.
+  var cardsPerPage = 12;
+
   // URL where to get the newest script.
   var scriptURL = 'https://greasyfork.org/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js';
 
-  var localVersion = 1.0;
+  var localVersion = 1.1;
   var getVersionAPIURL = 'https://api.github.com/repos/noplanman/tsu-helper/contents/VERSION';
   // Check for remote version number.
   checkRemoteVersion();
 
+
+  /********
+  Autofocus for title and message fields.
+  ********/
+
   // Set focus to message entry field on page load.
-  $( '#message' ).focus();
+  $( '#message, #message_body' ).focus();
 
   // Auto-focus title entry field when adding title.
   $( 'body' ).on( 'click', '.create_post .options .add_title', function() {
     var $postTitle = $( this ).closest( '#create_post_form' ).find( '#title' );
-    setTimeout( function() { $postTitle.focus(); }, 50);
+    setTimeout( function() { $postTitle.focus(); }, 50 );
   });
 
   // Auto-focus message entry field when adding/removing image.
   $( 'body' ).on( 'click', '.create_post .options .filebutton, .cancel_icon_createpost', function() {
     var $postMessage = $( this ).closest( '#create_post_form' ).find( '#message' );
-    setTimeout( function() { $postMessage.focus(); }, 50);
+    setTimeout( function() { $postMessage.focus(); }, 50 );
   });
 
+
+  /********
+  Check post message.
+  ********/
 
   /**
    * Check for the maximum number of hashtags and mentions.
@@ -203,7 +218,9 @@ $( document ).ready(function () {
     waitForPopup();
   });
 
-  // Open post by double clicking header.
+  /********
+  Open post by double clicking header.
+  ********/
   $( 'body' ).on( 'dblclick', '.post_header_name, .share_header', function( event ) {
     //var post_id = $( this ).closest( '.post' ).data( 'post-id' );
     var $post = $( this ).closest( '.post' );
@@ -227,6 +244,175 @@ $( document ).ready(function () {
     });
   });
 
+
+  /********
+  Find unanswered friend requests.
+  ********/
+  // This feature is only available to your own profile!
+  if ( window.current_user.username == $( '.profile_details .summary .username' ).text().trim().substring( 1 ) ) {
+    // Are we on the right profile page?
+    var currentPage = null;
+    if ( $( 'body.profile.following' ).length ) { currentPage = 'following'; }
+    if ( $( 'body.profile.followers' ).length ) { currentPage = 'followers'; }
+
+    doLog( 'Current page: ' + currentPage );
+
+    if ( currentPage ) {
+
+      var $title = $( '.profiles_list .title' );
+
+      // Get the number of pages required to load all users in the list, 12 per page.
+      var totalPages = Math.ceil( /\d+/.exec( $title.text() ) / cardsPerPage );
+      doLog( 'Total number of pages to load: ' + totalPages );
+      // As this number isn't totally correct, load all the pages
+      // and chain-load from the last page as far as needed.
+
+      // Cancel link.
+      var $ffrLinkCancel = $( '<a/>', {
+        title: 'Cancel current search',
+        html: '<img class="tff-loader-wheel" src="/assets/loader.gif" /> Cancel',
+        'id': 'ffr-link-cancel'
+      })
+      .click(function() { ffrCancel(); })
+      .hide() // Start hidden.
+      .appendTo( $title );
+
+      // Start link.
+      var $ffrLinkStart = $( '<a/>', {
+        title: 'Search for pending Friend Requests you might have missed.',
+        html: 'Find pending Friend Requests',
+        'id': 'ffr-link-find'
+      })
+      .click(function() { ffrStart(); })
+      .appendTo( $title );
+
+      // List of active Ajax requests.
+      var ffrAjaxRequests = {};
+      // The current chain request.
+      var $ffrAjaxChainRequest = null;
+      // Is the search busy?
+      var ffrBusy = false;
+      var ffrChainBusy = false;
+
+      /**
+       * Cancel the Friend Request search.
+       */
+      function ffrCancel() {
+        ffrBusy = false;
+        ffrChainBusy = false;
+
+        // Abort all AJAX requests.
+        for ( var page in ffrAjaxRequests ) {
+          ffrAjaxRequests[ page ].abort();
+          delete ffrAjaxRequests[ page ];
+        };
+
+        // Abort the current AJAX chain request.
+        $ffrAjaxChainRequest.abort();
+
+        $ffrLinkCancel.hide();
+        $ffrLinkStart.show();
+      }
+
+      /**
+       * Get a page of Follower/Following cards.
+       * @param  {integer} pageNr  The page number to get.
+       * @param  {boolean} isChain If this a chain request, continue getting consecutive pages.
+       */
+      function ffrGetPage( pageNr, isChain ) {
+        // Has the user cancelled the chain?
+        if ( isChain && ! ffrChainBusy ) {
+          return;
+        }
+
+        doLog( 'Getting page ' + pageNr );
+
+        var fetch_url = '/users/profiles/users_list/' + window.current_user.id + '/' + currentPage + '/' + pageNr;
+
+        var $ffrAjaxCurrentRequest = $.get( fetch_url, function( data ) {
+          // Get all the cards.
+          var $cards = $( data ).siblings( '.card' );
+          if ( $cards.length ) {
+
+            // Flag each card and add to stack.
+            $cards.each(function() {
+              // Find only respond links...
+              if ( $( this ).find( '.friend_request_box' ).length ) {
+                // And add it to the list before all the other cards.
+                $( '.profiles_list .card:not(.tsu-helper-card):first' ).before( $( this ).addClass( 'tsu-helper-card' ) );
+              }
+            });
+
+            // Are there more pages to load?
+            if ( isChain ) {
+              if ( $( data ).siblings( '.loadmore_profile' ).length ) {
+                // Get the next page.
+                ffrGetPage( pageNr + 1, true );
+              } else {
+                doLog( 'Chain completed at page ' + pageNr );
+                ffrChainBusy = false;
+              }
+            }
+          }
+        })
+        .fail(function( xhr, status, error ) {
+          if ( 'abort' == status ) {
+            doLog( 'Abort page ' + pageNr );
+          } else {
+            doLog( 'Error on page ' + pageNr + '! (' + status + ':' + error + ')' );
+          }
+        })
+        .always(function() {
+          doLog( 'Finished page ' + pageNr );
+          // After the request is complete, remove it from the array.
+          if ( ! isChain ) {
+            delete ffrAjaxRequests[ pageNr ];
+          }
+          ffrCheckIfFinished();
+        });
+
+        // If this is a chain request, set the ffrAjaxChainRequest variable.
+        // If not, add it to the requests array.
+        if ( isChain ) {
+          $ffrAjaxChainRequest = $ffrAjaxCurrentRequest;
+        } else {
+          ffrAjaxRequests[ pageNr ] = $ffrAjaxCurrentRequest;
+        }
+      }
+
+      /**
+       * Check if the Friend Request search is finished.
+       */
+      function ffrCheckIfFinished() {
+        var activeRequests = Object.keys( ffrAjaxRequests ).length;
+        doLog( 'Checking... ' + activeRequests + ' left.' );
+        if ( ! ffrChainBusy && activeRequests == 0 ) {
+          ffrCancel();
+        }
+      }
+
+      /**
+       * Start the Friend Request search.
+       */
+      function ffrStart() {
+        ffrBusy = true;
+        ffrChainBusy = true;
+
+        // Clear any previous results.
+        $( '.tsu-helper-card' ).remove();
+
+        // Load all pages and start the chain loading on the last page.
+        for (var i = totalPages; i >= 1; i-- ) {
+          ffrGetPage( i, i == totalPages );
+        };
+
+        $ffrLinkStart.hide();
+        $ffrLinkCancel.show();
+      }
+
+    }
+  }
+
   /**
    * Make a log entry if debug mode is active.
    * @param {string}  logMessage Message to write to the log console.
@@ -245,6 +431,26 @@ $( document ).ready(function () {
         alert( logMessage );
       }
     }
+  }
+
+  /**
+   * Add the required CSS rules.
+   */
+  function addCSS() {
+    doLog( 'Added CSS.' );
+    $( '<style>' )
+      .html( '\
+        #tsu-helper-menuitem-update a:before {\
+          display: none !important;\
+        }\
+        #ffr-link-find, #ffr-link-cancel {\
+          float: right;\
+        }\
+        .tsu-helper-card {\
+          background: #cfc;\
+        }\
+      ')
+      .appendTo( 'head' );
   }
 
   /**
