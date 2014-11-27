@@ -1,5 +1,13 @@
 #Change Log
 
+##Version 1.2
+
+- Now shows number of found Friend Requests.
+- Added Line breaks for messages.
+- Made nested replies parents stand out.
+- Now possible to post only a title or an image, with no text message.
+- Adapted to Tsu source code changes.
+
 ##Version 1.1
 
 - Search for pending friend requests in the Followers and Following tabs of your profile page.
