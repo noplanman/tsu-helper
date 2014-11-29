@@ -2,7 +2,7 @@
 
 Author: Armando Lüscher
 
-Version: 1.2 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+Version: 1.3 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 
 Short Link for sharing: https://j.mp/tsu-helper
 
@@ -10,10 +10,11 @@ Short Link for sharing: https://j.mp/tsu-helper
 
 Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 
-- NEW! Now shows number of found Friend Requests.
-- NEW! Added Line breaks for messages.
-- NEW! Made nested replies parents stand out.
-- NEW! Now possible to post only a title or an image, with no text message.
+- NEW! Now also finds sent Friend Request that are pending.
+- Shows number of found Friend Requests.
+- Added Line breaks for messages.
+- Made nested replies parents stand out.
+- Now possible to post only a title or an image, with no text message.
 - Search for pending friend requests in the Followers and Following tabs of your profile page.
 - Temporary fix to autofocus text input field for messaging.
 - Autofocus the message input to instantly start typing a post.

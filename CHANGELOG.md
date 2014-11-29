@@ -1,5 +1,9 @@
 #Change Log
 
+##Version 1.3
+
+- Now also finds sent Friend Requests that are pending.
+
 ##Version 1.2
 
 - Now shows number of found Friend Requests.

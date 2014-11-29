@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     1.2
+// @version     1.3
 // @author      Armando Lüscher
 // @grant       none
 // ==/UserScript==
@@ -13,6 +13,7 @@
  * For changelog see https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md
  */
 
+// Run everything as soon as the DOM is set up.
 $( document ).ready(function () {
 
   /***************
@@ -66,7 +67,7 @@ $( document ).ready(function () {
   // URL where to get the newest script.
   var scriptURL = 'https://greasyfork.org/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js';
 
-  var localVersion = 1.2;
+  var localVersion = 1.3;
   var getVersionAPIURL = 'https://api.github.com/repos/noplanman/tsu-helper/contents/VERSION';
   // Check for remote version number.
   checkRemoteVersion();
@@ -118,9 +119,6 @@ $( document ).ready(function () {
       // Single post.
       currentPage    = 'post';
       queryToLoad    = '.comment';
-    } else if ( document.URL.endsWith( '/friends' ) ) {
-      // Friends.
-      currentPage    = 'friends';
     } else if ( document.URL.endsWith( '/followers' ) ) {
       // Followers.
       currentPage    = 'followers';
@@ -395,18 +393,20 @@ $( document ).ready(function () {
   var ffrChainBusy = false;
 
   // The number of found friend requests.
-  var ffrCount = 0;
+  var ffrCountIn  = 0;
+  var ffrCountOut = 0;
 
   // The start and cancel buttons and status text.
   var $ffrLinkCancel;
   var $ffrLinkStart;
   var $ffrStatusText;
 
-  function ffrUpdateStatus( inc ) {
-    if ( inc ) {
-      ffrCount++;
+  function ffrUpdateStatus( type ) {
+    switch ( type ) {
+      case 'in':  ffrCountIn++;  break;
+      case 'out': ffrCountOut++; break;
     }
-    $ffrStatusText.text( ffrCount + ' found.' );
+    $ffrStatusText.html( '<span class="tsu-helper-card-in">' + ffrCountIn + ' received</span>&nbsp;<span class="tsu-helper-card-out">' + ffrCountOut + ' sent</span>' );
   }
 
   /**
@@ -417,6 +417,7 @@ $( document ).ready(function () {
   function ffrGetPage( pageNr, isChain ) {
     // Has the user cancelled the chain?
     if ( isChain && ! ffrChainBusy ) {
+      doLog( 'Jumped out of chain.' );
       return;
     }
 
@@ -426,28 +427,38 @@ $( document ).ready(function () {
 
     var $ffrAjaxCurrentRequest = $.get( fetch_url, function( data ) {
       // Get all the cards.
-      var $cards = $( data ).siblings( '.card' );
-      if ( $cards.length ) {
+      var $cards = $( data ).siblings( '.card' );  //.addBack();
 
+      if ( $cards.length ) {
         // Flag each card and add to stack.
         $cards.each(function() {
-          // Find only respond links...
-          if ( $( this ).find( '.friend_request_box' ).length ) {
-            // And add it to the list before all the other cards.
-            $( '.profiles_list .card:not(.tsu-helper-card):first' ).before( $( this ).addClass( 'tsu-helper-card' ) );
-            ffrUpdateStatus( true );
+          var $requestButton = $( this ).find( '.friend_button.grey' );
+          if ( $requestButton.length ) {
+            var type;
+            // Find only respond and request links...
+            if ( $requestButton.hasClass( 'friend_request_box' ) ) {
+              // And add it to the list before all the other cards.
+              type = 'in';
+            } else if ( $requestButton.attr( 'href' ).contains( '/cancel/' ) ) {
+              // And add it to the list before all the other cards.
+              type = 'out';
+            } else {
+              // Next card.
+              return;
+            }
+            $( '.profiles_list .card:not(.tsu-helper-card):first' ).before( $( this ).addClass( 'tsu-helper-card tsu-helper-card-' + type ) );
+            ffrUpdateStatus( type );
           }
         });
-
-        // Are there more pages to load?
-        if ( isChain ) {
-          if ( $( data ).siblings( '.loadmore_profile' ).length ) {
-            // Get the next page.
-            ffrGetPage( pageNr + 1, true );
-          } else {
-            doLog( 'Chain completed at page ' + pageNr );
-            ffrChainBusy = false;
-          }
+      }
+      // Are there more pages to load?
+      if ( isChain ) {
+        if ( $( data ).siblings( '.loadmore_profile' ).length ) {
+          // Get the next page.
+          ffrGetPage( pageNr + 1, true );
+        } else {
+          doLog( 'Chain completed on page ' + pageNr );
+          ffrChainBusy = false;
         }
       }
     })
@@ -461,9 +472,7 @@ $( document ).ready(function () {
     .always(function() {
       doLog( 'Finished page ' + pageNr );
       // After the request is complete, remove it from the array.
-      if ( ! isChain ) {
-        delete ffrAjaxRequests[ pageNr ];
-      }
+      delete ffrAjaxRequests[ pageNr ];
       ffrCheckIfFinished();
     });
 
@@ -482,6 +491,7 @@ $( document ).ready(function () {
   function ffrCheckIfFinished() {
     var activeRequests = Object.keys( ffrAjaxRequests ).length;
     doLog( activeRequests + ' pages left.' );
+    doLog( ffrChainBusy );
     if ( ! ffrChainBusy && 0 == activeRequests ) {
       ffrCancel();
     }
@@ -491,9 +501,8 @@ $( document ).ready(function () {
    * Start the Friend Request search.
    */
   function ffrStart() {
-    ffrBusy = true;
-    ffrChainBusy = true;
-    ffrCount = 0;
+    ffrBusy    = ffrChainBusy = true;
+    ffrCountIn = ffrCountOut  = 0;
     ffrUpdateStatus();
     $ffrStatusText.show();
 
@@ -513,8 +522,7 @@ $( document ).ready(function () {
    * Cancel the Friend Request search.
    */
   function ffrCancel() {
-    ffrBusy = false;
-    ffrChainBusy = false;
+    ffrBusy = ffrChainBusy = false;
 
     // Abort all AJAX requests.
     for ( var page in ffrAjaxRequests ) {
@@ -543,7 +551,7 @@ $( document ).ready(function () {
       // Cancel link.
       $ffrLinkCancel = $( '<a/>', {
         title: 'Cancel current search',
-        html: '<img class="tff-loader-wheel" src="/assets/loader.gif" /> Cancel',
+        html: 'Cancel',
         'id': 'ffr-link-cancel'
       })
       .click(function() { ffrCancel(); })
@@ -552,7 +560,7 @@ $( document ).ready(function () {
 
       // Start link.
       $ffrLinkStart = $( '<a/>', {
-        title: 'Search for pending Friend Requests you might have missed.',
+        title: 'Search for all pending Friend Requests.',
         html: 'Find pending Friend Requests',
         'id': 'ffr-link-start'
       })
@@ -665,11 +673,22 @@ $( document ).ready(function () {
         #ffr-link-start, #ffr-link-cancel, #ffr-status-text {\
           float: right;\
         }\
-        #ffr-status-text {\
-          margin-right: 16px;\
+        #ffr-link-cancel {\
+          background: url(/assets/loader.gif) no-repeat;\
+          padding-left: 24px;\
         }\
-        .tsu-helper-card {\
+        #ffr-status-text {\
+          margin-right: 8px;\
+        }\
+        #ffr-status-text span {\
+          padding: 2px 5px;\
+          border-radius: 3px;\
+        }\
+        .tsu-helper-card-in {\
           background: #cfc;\
+        }\
+        .tsu-helper-card-out {\
+          background: #eef;\
         }\
         .tsu-helper-nested-reply-parent {\
           text-decoration: underline;\
