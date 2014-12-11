@@ -1,5 +1,18 @@
 #Change Log
 
+##Version 1.5
+
+- Introduced Friends and Followers Manager (FFM).
+- FFM now shows Friends that are also being Followed, allowing to automatically Unfollow all Friends.
+- FFM has a filter to only show specific search results.
+- Show the real number of Friends, Followers and users Following you.
+- Quick-Mention to easily add @mentions to comments and replies.
+- Updated messages page to adapt to Tsu source code changes.
+
+##Version 1.4
+
+- There was never a version 1.4, check version 1.5 changes ;-)
+
 ##Version 1.3
 
 - Now also finds sent Friend Requests that are pending.

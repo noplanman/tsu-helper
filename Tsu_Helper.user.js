@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     1.3
+// @version     1.5
 // @author      Armando Lüscher
 // @grant       none
 // ==/UserScript==
@@ -53,7 +53,6 @@ $( document ).ready(function () {
     };
   }
 
-
   // Add the required CSS rules.
   addCSS();
 
@@ -67,7 +66,7 @@ $( document ).ready(function () {
   // URL where to get the newest script.
   var scriptURL = 'https://greasyfork.org/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js';
 
-  var localVersion = 1.3;
+  var localVersion = 1.5;
   var getVersionAPIURL = 'https://api.github.com/repos/noplanman/tsu-helper/contents/VERSION';
   // Check for remote version number.
   checkRemoteVersion();
@@ -76,25 +75,27 @@ $( document ).ready(function () {
   setTimeout( function() {
     getCurrentPage();
     startObserver();
-  }, 500);
+  }, 500 );
 
   // As the observer can't necessarily detect any changes immediately, run functions now.
   setTimeout( function() {
     switch ( currentPage ) {
-      case 'home':
-      case 'diary':
-      case 'post':
+      case 'home'  :
+      case 'diary' :
+      case 'post'  :
+        addMentionReplies();
         emphasizeNestedRepliesParents();
         break;
-      case 'messages':
+      case 'messages' :
         tweakMessagesPage();
         break;
-      case 'followers':
-      case 'following':
-        findUnansweredFriendRequests();
+      case 'friends'   :
+      case 'followers' :
+      case 'following' :
+        startFFManager();
         break;
     }
-  }, 1000);
+  }, 1000 );
 
   // The elements that we are observing.
   var queryToObserve = 'body';
@@ -115,10 +116,13 @@ $( document ).ready(function () {
       // Diary
       currentPage    = 'diary';
       queryToLoad    = '.comment';
-    } else if ( document.URL.contains( '/post/' ) ) {
+    } else if ( document.URL.contains( '/post/' ) || $( 'body.show_post' ).length ) {
       // Single post.
       currentPage    = 'post';
       queryToLoad    = '.comment';
+    } else if ( document.URL.endsWith( '/friends' ) ) {
+      // Friends.
+      currentPage    = 'friends';
     } else if ( document.URL.endsWith( '/followers' ) ) {
       // Followers.
       currentPage    = 'followers';
@@ -128,6 +132,7 @@ $( document ).ready(function () {
     } else if ( document.URL.contains( '/messages/' ) || document.URL.endsWith( '/messages' ) ) {
       // Messages.
       currentPage    = 'messages';
+      queryToObserve = '.messages_content';
       queryToLoad    = '.messages_content .message_box';
     }
 
@@ -183,7 +188,7 @@ $( document ).ready(function () {
     }
 
     // Set up warning message.
-    var warning = 'Limits exceeded, check your message! Are you sure you want to continue?\n';
+    var warning = 'Limits may be exceeded, check your message!\nAre you sure you want to continue?\n';
     if ( nrOfHashtags > maxHashtags ) {
       warning += '\n' + nrOfHashtags + ' #hashtags found. (Max. ' + maxHashtags + ')'
       doLog( 'Too many hashtags found! (' + nrOfHashtags + ')', 'w' );
@@ -240,7 +245,7 @@ $( document ).ready(function () {
    * @param  {event}  event The form submit event.
    */
   function formSubmit( $form, event ) {
-    // In case the post gets canceled, make sure the message field is focused.
+    // In case the post gets cancelled, make sure the message field is focused.
     var message = $form.find( '#text' ).focus().val();
     var title   = $form.find( '#title' ).val();
     var hasPic  = ( '' != $form.find( '#create_post_pic_preview' ).text() );
@@ -347,12 +352,167 @@ $( document ).ready(function () {
    */
   function emphasizeNestedRepliesParents() {
     doLog( 'Emphasizing nested replies parents.' );
-    $( '.post_comment .load_more_post_comment_replies' ).each(function(){
-      if ( ! $( this ).hasClass( 'tsu-helper-nested-reply-parent' )
-        && /\d+/.exec( $( this ).text() ) > 0 ) {
-        $( this ).addClass( 'tsu-helper-nested-reply-parent' );
+    $( '.post_comment .load_more_post_comment_replies' ).not( '.th-nested-reply-parent' ).each(function(){
+      if ( /\d+/.exec( $( this ).text() ) > 0 ) {
+        $( this ).addClass( 'th-nested-reply-parent' );
       }
     });
+  }
+
+  /********
+  Add @mention replies.
+  ********/
+  // The currently active textarea to insert the @mentions.
+  var $activeReplyTextArea = null;
+
+  /**
+   * Add text to the passed textarea input field.
+   * @param {jQuery} $textArea jQuery object of the textarea input field.
+   * @param {string} text      Text to add.
+   */
+  function addTextToTextArea( $textArea, text ) {
+    if ( $textArea ) {
+      var textAreaText = $textArea.val();
+      var caretPos1 = $textArea[0].selectionStart;
+      var caretPos2 = $textArea[0].selectionEnd;
+      $textArea.val( textAreaText.substring( 0, caretPos1 ) + text + textAreaText.substring( caretPos2 ) );
+      $textArea[0].selectionStart = $textArea[0].selectionEnd = caretPos1 + text.length;
+      $textArea.focus();
+    }
+  }
+
+  /**
+   * Add the @mention links to the replies.
+   */
+  function addMentionReplies() {
+    doLog( 'Adding @mention replies.' );
+
+    // Process all reply links to autofocus the reply textare input field.
+    $( '.load_more_post_comment_replies' ).not( '.th-reply-processed' ).each(function() {
+      var $replyLink = $( this );
+      $replyLink.click(function() {
+        var $postComment = $replyLink.closest( '.post_comment' );
+        var $replyContainer = $postComment.siblings( '.comment_reply_container' );
+        var $textArea = $replyContainer.children( '.post_write_comment' ).find( '#comment_text' );
+
+        // This gets called before the "official" click, so the logic is inversed!
+        // And delay everything a bit too, as it gets lazy-loaded.
+        if ( $replyContainer.is( ':visible' ) ) {
+          setTimeout(function() {
+            // Only set the active textarea null if it's this one.
+            if ( $textArea[0] == $activeReplyTextArea[0] ) {
+              $activeReplyTextArea = null;
+              // Hide all @ links.
+              $( '.th-at-reply' ).hide();
+            }
+          }, 100);
+        } else {
+          setTimeout(function() {
+            $postComment.find( '.th-at-reply' ).show();
+            $textArea.focus();
+          }, 100);
+        }
+      });
+      $replyLink.addClass( 'th-reply-processed' );
+    });
+
+    // Process all comment / reply textarea input fields to set themselves as active on focus.
+    $( '.post_write_comment #comment_text' ).not( '.th-textarea-processed' ).each(function() {
+      $( this ).focusin( function() {
+        $activeReplyTextArea = $( this );
+        $( '.th-active-input' ).removeClass( 'th-active-input' );
+        $activeReplyTextArea.closest( '.expandingText_parent' ).addClass( 'th-active-input' );
+      });
+      $( this ).addClass( 'th-textarea-processed' );
+    });
+
+    // Link for all comments.
+    $( '.post_comment_header' ).not( '.th-at-added' ).each(function() {
+      var $head = $( this );
+      var $commentArea = $head.closest( '.post_comment' );
+
+      // Get just the last part of the href, the username.
+      var hrefBits = $head.find( 'a' ).attr( 'href' ).split( '/' );
+      var atUsername = '@' + hrefBits[ hrefBits.length - 1 ] + ' ';
+
+      var $mentionLink = $( '<a/>', {
+        html  : '@ +',
+        title : 'Add ' + atUsername + 'to current reply.',
+        class : 'th-at-reply'
+      })
+      .hide() // Start hidden, as it will appear with the mouse over event.
+      .click(function() {
+        addTextToTextArea( $activeReplyTextArea, atUsername );
+      });
+
+      // Show / hide link on hover / blur if there is an active reply input selected.
+      $commentArea.hover(
+        function() { if ( $activeReplyTextArea && $activeReplyTextArea.length ) { $mentionLink.show(); } },
+        function() { $mentionLink.hide(); }
+      );
+
+      $head.addClass( 'th-at-added' );
+
+      // Position the @ link.
+      var $profilePic = $head.find( '.post_profile_picture' );
+      var offset = $profilePic.position();
+      $mentionLink.offset({ top: offset.top + $profilePic.height(), left: offset.left });
+
+      $head.append( $mentionLink );
+    });
+
+    // Link for all textareas.
+    $( '.post_write_comment' ).not( '.th-at-added' ).each(function() {
+      var $commentArea = $( this );
+      var $commentInput = $commentArea.find( '#comment_text' );
+      var $head = null;
+      var linkElement = null;
+      var isReply = $commentArea.hasClass( 'reply' );
+
+      // Is this a nested comment? Then use the previous reply as the username.
+      if ( isReply ) {
+        $head = $commentArea.closest( '.comment' ).find( '.post_comment .post_comment_header' );
+        linkElement = 'a';
+      } else {
+        // Get the current post to determine the username.
+        var $post = $commentArea.closest( '.post' );
+
+        // Defaults as if we have a shared post.
+        $head = $post.find( '.share_header' );
+        linkElement = '.evac_user a';
+
+        // If it's not a share, get the post header.
+        if ( 0 === $head.length ) {
+          $head = $post.find( '.post_header' );
+          linkElement = '.post_header_pp a';
+        }
+      }
+
+      // Get just the last part of the href, the username.
+      var hrefBits = $head.find( linkElement ).attr( 'href' ).split( '/' );
+      var atUsername = '@' + hrefBits[ hrefBits.length - 1 ] + ' ';
+
+      var $mentionLink = $( '<a/>', {
+        html  : '@ >',
+        title : 'Add ' + atUsername + 'to this ' + ( ( isReply ) ? 'reply.' : 'comment.' ),
+        class : 'th-at-comment'
+      })
+      .hide() // Start hidden, as it will appear with the mouse over event.
+      .click(function() {
+        addTextToTextArea( $commentInput, atUsername );
+      });
+
+      // Show / hide link on hover / blur.
+      $commentArea.hover(
+        function() { $mentionLink.show(); },
+        function() { $mentionLink.hide(); }
+      );
+
+      $commentArea.addClass( 'th-at-added' );
+
+      $commentArea.find( '.post_profile_picture' ).parent().after( $mentionLink );
+    });
+
   }
 
   /********
@@ -362,7 +522,11 @@ $( document ).ready(function () {
    * Autofocus text input and add line breaks to messages.
    */
   function tweakMessagesPage() {
-    $( '#message_body' ).focus();
+    if ( document.URL.endsWith( '/new' ) ) {
+      $( '#message_to_textarea' ).focus();
+    } else {
+      $( '#message_body' ).focus();
+    }
     $( '.messages_content .message_box' ).each(function(){
       if ( ! $( this ).hasClass( 'tsu-helper-tweaked' ) ) {
         var $text = $( this ).find( '.message-text' );
@@ -373,40 +537,55 @@ $( document ).ready(function () {
   }
 
   /********
-  Find unanswered friend requests.
+  Friends and Followers Manager.
   ********/
 
   // Cards per page request of Followers / Following.
-  var ffrCardsPerPage = 12;
+  var ffmCardsPerPage = 12;
 
   // The total amount of pages to preload.
-  var ffrTotalPages = 0;
+  var ffmTotalPages = 0;
+
+  // The real number of Friends / Followers / Following.
+  var ffmTotalFFFs = 0;
 
   // List of active Ajax requests.
-  var ffrAjaxRequests = {};
+  var ffmAjaxRequests = {};
 
   // The current chain request.
-  var $ffrAjaxChainRequest = null;
+  var $ffmAjaxChainRequest = null;
 
   // Is the search busy?
-  var ffrBusy = false;
-  var ffrChainBusy = false;
+  var ffmBusy = false;
+  var ffmChainBusy = false;
 
   // The number of found friend requests.
-  var ffrCountIn  = 0;
-  var ffrCountOut = 0;
+  var ffmCount = {
+    'fandf'    : 0,
+    'received' : 0,
+    'sent'     : 0
+  };
 
   // The start and cancel buttons and status text.
-  var $ffrLinkCancel;
-  var $ffrLinkStart;
-  var $ffrStatusText;
+  var $ffmLinkCancel;
+  var $ffmLinkStart;
+  var $ffmStatusText;
+  var $ffmLinkUnfollowFriends;
+  var $ffmTotalFFFs;
+  var ffmFilterCheckboxes = {};
 
-  function ffrUpdateStatus( type ) {
-    switch ( type ) {
-      case 'in':  ffrCountIn++;  break;
-      case 'out': ffrCountOut++; break;
+  function ffmUpdateStatus( type ) {
+    if ( null === type ) {
+      $ffmStatusText.find( 'span' ).html( '0' );
+      $ffmTotalFFFs.html( '-' );
+      return;
     }
-    $ffrStatusText.html( '<span class="tsu-helper-card-in">' + ffrCountIn + ' received</span>&nbsp;<span class="tsu-helper-card-out">' + ffrCountOut + ' sent</span>' );
+    var $el = $ffmStatusText.find( '.th-ffm-card-' + type + ' span' );
+    switch ( type ) {
+      case 'fandf'    : $el.html( ++ffmCount.fandf );    break;
+      case 'received' : $el.html( ++ffmCount.received ); break;
+      case 'sent'     : $el.html( ++ffmCount.sent );     break;
+    }
   }
 
   /**
@@ -414,9 +593,9 @@ $( document ).ready(function () {
    * @param  {integer} pageNr  The page number to get.
    * @param  {boolean} isChain If this a chain request, continue getting consecutive pages.
    */
-  function ffrGetPage( pageNr, isChain ) {
+  function ffmGetPage( pageNr, isChain ) {
     // Has the user cancelled the chain?
-    if ( isChain && ! ffrChainBusy ) {
+    if ( isChain && ! ffmChainBusy ) {
       doLog( 'Jumped out of chain.' );
       return;
     }
@@ -425,29 +604,35 @@ $( document ).ready(function () {
 
     var fetch_url = '/users/profiles/users_list/' + window.current_user.id + '/' + currentPage + '/' + pageNr;
 
-    var $ffrAjaxCurrentRequest = $.get( fetch_url, function( data ) {
+    var $ffmAjaxCurrentRequest = $.get( fetch_url, function( data ) {
       // Get all the cards.
-      var $cards = $( data ).siblings( '.card' );  //.addBack();
+      var $cards = $( data ).siblings( '.card' );
+
+      // Count each card to determine correct total count.
+      ffmTotalFFFs += $cards.length;
+      $ffmTotalFFFs.html( ffmTotalFFFs );
 
       if ( $cards.length ) {
         // Flag each card and add to stack.
         $cards.each(function() {
-          var $requestButton = $( this ).find( '.friend_button.grey' );
-          if ( $requestButton.length ) {
+
+          var $followButton = $( this ).find( '.follow_button.grey' );
+          var $friendButton = $( this ).find( '.friend_button.grey' );
+          if ( $friendButton.length ) {
             var type;
-            // Find only respond and request links...
-            if ( $requestButton.hasClass( 'friend_request_box' ) ) {
-              // And add it to the list before all the other cards.
-              type = 'in';
-            } else if ( $requestButton.attr( 'href' ).contains( '/cancel/' ) ) {
-              // And add it to the list before all the other cards.
-              type = 'out';
+            // Find only respond and request links. Also show cards that are friends and following.
+            if ( $friendButton.hasClass( 'friend_request_box' ) ) {
+              type = 'received';
+            } else if ( $friendButton.attr( 'href' ).contains( '/cancel/' ) ) {
+              type = 'sent';
+            } else if ( $followButton.length && $friendButton.length ) {
+              type = 'fandf';
             } else {
               // Next card.
               return;
             }
-            $( '.profiles_list .card:not(.tsu-helper-card):first' ).before( $( this ).addClass( 'tsu-helper-card tsu-helper-card-' + type ) );
-            ffrUpdateStatus( type );
+            $( '.profiles_list .card:not(.th-ffm-card):first' ).before( $( this ).addClass( 'th-ffm-card th-ffm-card-' + type ) );
+            ffmUpdateStatus( type );
           }
         });
       }
@@ -455,10 +640,10 @@ $( document ).ready(function () {
       if ( isChain ) {
         if ( $( data ).siblings( '.loadmore_profile' ).length ) {
           // Get the next page.
-          ffrGetPage( pageNr + 1, true );
+          ffmGetPage( pageNr + 1, true );
         } else {
           doLog( 'Chain completed on page ' + pageNr );
-          ffrChainBusy = false;
+          ffmChainBusy = false;
         }
       }
     })
@@ -472,107 +657,184 @@ $( document ).ready(function () {
     .always(function() {
       doLog( 'Finished page ' + pageNr );
       // After the request is complete, remove it from the array.
-      delete ffrAjaxRequests[ pageNr ];
-      ffrCheckIfFinished();
+      delete ffmAjaxRequests[ pageNr ];
+      ffmCheckIfFinished();
     });
 
-    // If this is a chain request, set the ffrAjaxChainRequest variable.
+    // If this is a chain request, set the ffmAjaxChainRequest variable.
     // If not, add it to the requests array.
     if ( isChain ) {
-      $ffrAjaxChainRequest = $ffrAjaxCurrentRequest;
+      $ffmAjaxChainRequest = $ffmAjaxCurrentRequest;
     } else {
-      ffrAjaxRequests[ pageNr ] = $ffrAjaxCurrentRequest;
+      ffmAjaxRequests[ pageNr ] = $ffmAjaxCurrentRequest;
     }
   }
 
   /**
    * Check if the Friend Request search is finished.
    */
-  function ffrCheckIfFinished() {
-    var activeRequests = Object.keys( ffrAjaxRequests ).length;
+  function ffmCheckIfFinished() {
+    var activeRequests = Object.keys( ffmAjaxRequests ).length;
     doLog( activeRequests + ' pages left.' );
-    doLog( ffrChainBusy );
-    if ( ! ffrChainBusy && 0 == activeRequests ) {
-      ffrCancel();
+    doLog( ffmChainBusy );
+    if ( ! ffmChainBusy && 0 == activeRequests ) {
+      ffmFinished();
     }
   }
 
   /**
-   * Start the Friend Request search.
+   * Start the FFM.
    */
-  function ffrStart() {
-    ffrBusy    = ffrChainBusy = true;
-    ffrCountIn = ffrCountOut  = 0;
-    ffrUpdateStatus();
-    $ffrStatusText.show();
+  function ffmStart() {
+    ffmBusy = ffmChainBusy = true;
+    ffmTotalFFFs = ffmCount.received = ffmCount.sent = ffmCount.fandf = 0;
+    ffmUpdateStatus( null );
+    $ffmStatusText.find( 'input' ).attr( 'disabled', true ).prop( 'checked', true );
+    $ffmStatusText.show();
+    $ffmTotalFFFs.show();
+    $ffmLinkUnfollowFriends.hide();
 
     // Clear any previous results.
-    $( '.tsu-helper-card' ).remove();
+    $( '.th-ffm-card' ).remove();
 
     // Load all pages and start the chain loading on the last page.
-    for ( var i = ffrTotalPages; i >= 1; i-- ) {
-      ffrGetPage( i, i == ffrTotalPages );
+    for ( var i = ffmTotalPages; i >= 1; i-- ) {
+      ffmGetPage( i, i == ffmTotalPages );
     };
 
-    $ffrLinkStart.hide();
-    $ffrLinkCancel.show();
+    $ffmLinkStart.hide();
+    $ffmLinkCancel.show();
   }
 
   /**
-   * Cancel the Friend Request search.
+   * Finish off the FFM.
+   * @param  {boolean} cancelled If the FFM has been cancelled.
    */
-  function ffrCancel() {
-    ffrBusy = ffrChainBusy = false;
+  function ffmFinished( cancelled ) {
+    ffmBusy = ffmChainBusy = false;
+    $ffmStatusText.find( 'input' ).removeAttr( 'disabled' );
 
-    // Abort all AJAX requests.
-    for ( var page in ffrAjaxRequests ) {
-      ffrAjaxRequests[ page ].abort();
-      delete ffrAjaxRequests[ page ];
-    };
+    if ( ffmCount.fandf ) {
+      $ffmLinkUnfollowFriends.show();
+    }
 
-    // Abort the current AJAX chain request.
-    $ffrAjaxChainRequest.abort();
+    if ( cancelled ) {
+      // Abort all AJAX requests.
+      for ( var page in ffmAjaxRequests ) {
+        ffmAjaxRequests[ page ].abort();
+        delete ffmAjaxRequests[ page ];
+      };
 
-    $ffrLinkCancel.hide();
-    $ffrLinkStart.show();
+      // Abort the current AJAX chain request.
+      $ffmAjaxChainRequest.abort();
+
+      // The total number is incomplete, so hide it.
+      $ffmTotalFFFs.hide();
+    }
+
+    $ffmLinkCancel.hide();
+    $ffmLinkStart.show();
+  }
+
+  /**
+   * Cancel the FFM.
+   */
+  function ffmCancel() {
+    // Call finished with the cancelled parameter.
+    ffmFinished( true );
+  }
+
+  /**
+   * Display / Hide certain categories.
+   * @param  {string}  type  The type of cards to display / hide.
+   * @param  {boolean} state True: display, False: hide.
+   */
+  function ffmFilter( type, state ) {
+    if ( state ) {
+      $( '.th-ffm-card.th-ffm-card-' + type ).show();
+    } else {
+      $( '.th-ffm-card.th-ffm-card-' + type ).hide();
+    }
+  }
+
+  /**
+   * Automatically Unfollow all the loaded Friends.
+   */
+  function ffmUnfollowFriends() {
+    var toUnfollow = $( '.th-ffm-card.th-ffm-card-fandf .follow_button.grey' );
+    if ( toUnfollow.length && confirm( 'Are you sure you want to Unfollow all ' + toUnfollow.length + ' Friends on this page?\nThey will still be your Friends.\n\n(this cannot be undone)' ) ) {
+      var unfollowed = 0;
+      $( '.th-ffm-card.th-ffm-card-fandf .follow_button.grey' ).each(function() {
+        this.click();
+        unfollowed++;
+      });
+      $ffmLinkUnfollowFriends.hide();
+      alert( unfollowed + ' Friends have been Unfollowed!');
+    }
   }
 
   // This feature is only available to your own profile!
-  function findUnansweredFriendRequests() {
+  function startFFManager() {
     if ( window.current_user.username == $( '.profile_details .summary .username' ).text().trim().substring( 1 ) ) {
       var $title = $( '.profiles_list .title' );
 
       // Get the number of pages required to load all users in the list, 12 per page.
-      ffrTotalPages = Math.ceil( /\d+/.exec( $title.text() ) / ffrCardsPerPage );
-      doLog( 'Total number of pages to load: ' + ffrTotalPages );
+      ffmTotalPages = Math.ceil( /\d+/.exec( $title.text() ) / ffmCardsPerPage ) || 1;
+      doLog( 'Total number of pages to load: ' + ffmTotalPages );
       // As this number isn't totally correct, load all the pages
       // and chain-load from the last page as far as needed.
 
-      // Cancel link.
-      $ffrLinkCancel = $( '<a/>', {
-        title: 'Cancel current search',
-        html: 'Cancel',
-        'id': 'ffr-link-cancel'
+      // Real number of FFFs.
+      $ffmTotalFFFs = $( '<span/>', {
+        'id'  : 'th-ffm-total-fffs',
+        title : 'Correct count',
+        html  : '-'
       })
-      .click(function() { ffrCancel(); })
+      .hide() // Start hidden.
+      .appendTo( $title );
+
+      // Cancel link.
+      $ffmLinkCancel = $( '<a/>', {
+        'id'  : 'th-ffm-link-cancel',
+        title : 'Cancel current search',
+        html  : 'Cancel'
+      })
+      .click( function() { ffmCancel(); } )
       .hide() // Start hidden.
       .appendTo( $title );
 
       // Start link.
-      $ffrLinkStart = $( '<a/>', {
-        title: 'Search for all pending Friend Requests.',
-        html: 'Find pending Friend Requests',
-        'id': 'ffr-link-start'
+      $ffmLinkStart = $( '<a/>', {
+        'id'  : 'th-ffm-link-start',
+        title : 'Search for pending Friend Requests and Friends you also Follow.',
+        html  : 'F&F Manager'
       })
-      .click(function() { ffrStart(); })
+      .click( function() { ffmStart(); } )
       .appendTo( $title );
 
       // Status text to display the number of found items.
-      $ffrStatusText = $( '<span/>', {
-        'id': 'ffr-status-text'
+      $ffmStatusText = $( '<span/>', {
+        'id' : 'th-ffm-status-text',
+        html : '<label title="Friends also being Followed" class="th-ffm-card-fandf"><span>0</span> F&F</label>&nbsp;' +
+               '<label title="Received Friend Requests" class="th-ffm-card-received"><span>0</span> received</label>&nbsp;' +
+               '<label title="Sent Friend Requests" class="th-ffm-card-sent"><span>0</span> sent</label>'
       })
       .hide() // Start hidden.
       .appendTo( $title );
+
+      // Assign checkbox clicks to show / hide results.
+      $( '<input/>', { 'id' : 'th-ffm-cb-fandf',    type : 'checkbox', checked : 'checked' } ).change( function() { ffmFilter( 'fandf',    this.checked ) } ).prependTo( $ffmStatusText.find( '.th-ffm-card-fandf' ) );
+      $( '<input/>', { 'id' : 'th-ffm-cb-received', type : 'checkbox', checked : 'checked' } ).change( function() { ffmFilter( 'received', this.checked ) } ).prependTo( $ffmStatusText.find( '.th-ffm-card-received' ) );
+      $( '<input/>', { 'id' : 'th-ffm-cb-sent',     type : 'checkbox', checked : 'checked' } ).change( function() { ffmFilter( 'sent',     this.checked ) } ).prependTo( $ffmStatusText.find( '.th-ffm-card-sent' ) );
+
+      $ffmLinkUnfollowFriends = $( '<a/>', {
+        'id'  : 'th-ffm-unfollow-friends',
+        title : 'Unfollow all Friends on this page',
+        html  : 'unfollow'
+      })
+      .click( function() { ffmUnfollowFriends() } )
+      .hide() // Start hidden.
+      .prependTo( $ffmStatusText );
     }
   }
 
@@ -585,10 +847,10 @@ $( document ).ready(function () {
   function doLog( logMessage, level, alsoAlert ) {
     if ( debug ) {
       switch( level ) {
-        case 'i': console.info( logMessage );  break;
-        case 'w': console.warn( logMessage );  break;
-        case 'e': console.error( logMessage ); break;
-        default: console.log( logMessage );
+        case 'i' : console.info( logMessage );  break;
+        case 'w' : console.warn( logMessage );  break;
+        case 'e' : console.error( logMessage ); break;
+        default  : console.log( logMessage );
       }
       if ( alsoAlert ) {
         alert( logMessage );
@@ -600,22 +862,53 @@ $( document ).ready(function () {
    * Start observing for DOM changes.
    */
   function startObserver() {
-
     doLog( 'Start Observer.', 'i' );
+
     // Check if we can use the MutationObserver.
     if ( 'MutationObserver' in window ) {
       var toObserve = document.querySelector( queryToObserve );
-      doLog(toObserve);
       if ( toObserve ) {
         var observer = new MutationObserver( function( mutations ) {
+
+          // Helper to determine if added or removed nodes have a specific class.
+          function mutationNodesHaveClass( mutation, classes ) {
+            classes = classes.split( ',' );
+
+            // Added nodes.
+            for ( var m = mutation.addedNodes.length - 1; m >= 0; m-- ) {
+              for ( var c = classes.length - 1; c >= 0; c-- ) {
+                // In case the node has no className (e.g. textnode), just ignore it.
+                try {
+                  if ( mutation.addedNodes[ m ].className.contains( classes[ c ].trim() ) ) {
+                    return true;
+                  }
+                } catch( e ) { }
+              };
+            };
+
+            // Removed nodes.
+            for ( var m = mutation.removedNodes.length - 1; m >= 0; m-- ) {
+              for ( var c = classes.length - 1; c >= 0; c-- ) {
+                // In case the node has no className (e.g. textnode), just ignore it.
+                try {
+                  if ( mutation.removedNodes[ m ].className.contains( classes[ c ].trim() ) ) {
+                    return true;
+                  }
+                } catch( e ) { }
+              };
+            };
+          }
+
           doLog( mutations.length + ' DOM changes.' );
           doLog( mutations );
 
           var reload = false;
-          // Ignore post and comment time updates.
-          for ( var i = mutations.length - 1; i >= 0; i-- ) {
-            var classes = mutations[i].target.className;
-            if ( ! classes.contains( 'comment_time_from_now' ) && ! classes.contains( 'time_to_update' ) ) {
+          // Ignore post and comment time updates and other specific changes.
+          for ( var m = mutations.length - 1; m >= 0; m-- ) {
+            var classes = mutations[ m ].target.className;
+            if ( ! classes.contains( 'comment_time_from_now' )
+              && ! classes.contains( 'time_to_update' )
+              && ! mutationNodesHaveClass( mutations[ m ], 'tooltipster,th-at-added' ) ) {
               reload = true;
               break;
             }
@@ -624,12 +917,13 @@ $( document ).ready(function () {
           // Only reload data if we're on the right page.
           if ( reload ) {
             switch ( currentPage ) {
-              case 'home':
-              case 'diary':
-              case 'post':
+              case 'home'  :
+              case 'diary' :
+              case 'post'  :
+                addMentionReplies();
                 emphasizeNestedRepliesParents();
                 break;
-              case 'messages':
+              case 'messages' :
                 tweakMessagesPage();
                 break;
             }
@@ -647,12 +941,13 @@ $( document ).ready(function () {
       // Instead of using queryToObserve, we wait for the ones that need to be loaded, queryToLoad.
       $.getScript( 'https://gist.github.com/raw/2625891/waitForKeyElements.js', function() {
         switch ( currentPage ) {
-          case 'home':
-          case 'diary':
-          case 'post':
+          case 'home'  :
+          case 'diary' :
+          case 'post'  :
+            waitForKeyElements( queryToLoad, addMentionReplies );
             waitForKeyElements( queryToLoad, emphasizeNestedRepliesParents );
             break;
-          case 'messages':
+          case 'messages' :
             waitForKeyElements( queryToLoad, tweakMessagesPage );
             break;
         }
@@ -667,39 +962,30 @@ $( document ).ready(function () {
     doLog( 'Added CSS.' );
     $( '<style>' )
       .html( '\
-        #tsu-helper-menuitem-update a:before {\
-          display: none !important;\
-        }\
-        #ffr-link-start, #ffr-link-cancel, #ffr-status-text {\
-          float: right;\
-        }\
-        #ffr-link-cancel {\
-          background: url(/assets/loader.gif) no-repeat;\
-          padding-left: 24px;\
-        }\
-        #ffr-status-text {\
-          margin-right: 8px;\
-        }\
-        #ffr-status-text span {\
-          padding: 2px 5px;\
-          border-radius: 3px;\
-        }\
-        .tsu-helper-card-in {\
-          background: #cfc;\
-        }\
-        .tsu-helper-card-out {\
-          background: #eef;\
-        }\
-        .tsu-helper-nested-reply-parent {\
-          text-decoration: underline;\
-          color: #777 !important;\
-        }\
+        #th-menuitem-update a:before { display: none !important; }\
+        #th-menuitem-update a { background-color: #f1b054 !important; color: #fff !important; width: 100% !important; padding: 8px !important; box-sizing: border-box; text-align: center; }\
+        #th-ffm-unfollow-friends{ background: #dc3a50; color: #fff; font-size: .8em; }\
+        #th-ffm-total-fffs { background: #090; color: #fff; margin-left: 8px !important; }\
+        #th-ffm-link-start, #th-ffm-link-cancel { float: right; padding: 2px; }\
+        #th-ffm-link-cancel { background: url(/assets/loader.gif) no-repeat; padding-left: 24px; }\
+        #th-ffm-status-text { float: right; margin-right: 8px; }\
+        #th-ffm-status-text label, #th-ffm-total-fffs, #th-ffm-unfollow-friends { padding: 2px 5px; border-radius: 3px; border: 1px solid rgba(0,0,0,.5); margin: -1px; }\
+        #th-ffm-status-text input { margin: 0 5px 0 2px; }\
+        #th-ffm-status-text * { display: inline-block; cursor: pointer; }\
+        .th-ffm-card-received { background: #cfc; }\
+        .th-ffm-card-sent { background: #eef; }\
+        .th-ffm-card-fandf { background: #ffc; }\
+        .th-nested-reply-parent { text-decoration: underline; color: #777 !important; }\
+        .th-at-comment, .th-at-reply { z-index: 1; font-weight: bold; font-size: 0.8em; display: block; position: absolute; background: #1ABC9C; color: #fff; border-radius: 3px; padding: 2px; }\
+        .th-at-comment { margin-left: 11px; }\
+        .th-active-input { border-color: rgba(0,0,0,.4) !important; }\
+        .post_comment { position: relative; }\
       ')
       .appendTo( 'head' );
   }
 
   /**
-   * Get the remote version on GitHub and output a message if a newer version is found.
+   * Get the remote version on GitHub and output a notification if a newer version is found.
    */
   function checkRemoteVersion() {
     $.getJSON( getVersionAPIURL, function ( response ) {
@@ -709,30 +995,31 @@ $( document ).ready(function () {
       // Check if there is a newer version available.
       if ( remoteVersion > localVersion ) {
         // Change the background color of the name tab on the top right.
-        $( '#navBarHead .tab.name' ).css( 'background-color', '#F1B054' );
+        $( '#navBarHead .tab.name' ).css( 'background-color', '#f1b054' );
 
         // Make sure the update link doesn't already exist!
-        if ( 0 === $( '#tsu-helper-menuitem-update' ).length ) {
+        if ( 0 === $( '#th-menuitem-update' ).length ) {
           var $updateLink = $( '<a/>', {
-            title: 'Update Tsu Helper script to the newest version (' + remoteVersion + ')',
-            href: scriptURL,
-            html: 'Update Tsu Helper!'
+            title : 'Update Tsu Helper script to the newest version (' + remoteVersion + ')',
+            href  : scriptURL,
+            html  : 'Update Tsu Helper!'
           })
           .attr( 'target', '_blank' ) // Open in new window / tab.
-          .css( { 'background-color' : '#F1B054', 'color' : '#fff' } ) // White text on orange background.
           .click(function() {
             if ( ! confirm( 'Upgrade to the newest version (' + remoteVersion + ')?\n\n(refresh this page after the script has been updated)' ) ) {
               return false;
             }
           });
 
-          $( '<li/>', { 'id': 'tsu-helper-menuitem-update', html: $updateLink } )
+          $( '<li/>', { 'id' : 'th-menuitem-update', html: $updateLink } )
           .appendTo( '#navBarHead .sub_nav' );
         }
 
       }
     })
-    .fail(function() { doLog( 'Couldn\'t get remote version number for Tsu Helper.', 'w' ); });
+    .fail(function() {
+      doLog( 'Couldn\'t get remote version number for Tsu Helper.', 'w' );
+    });
   }
 
 })();
