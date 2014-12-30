@@ -26,13 +26,13 @@ NOTE: The Friends and Followers Manager cannot be disabled, as it has no backgro
 
 Settings
 - Hide Ads: Show or Hide all the Advertisements. They are still loaded and displayed, but moved out of view.
-- Enable Quick Mentions: Add Quick Mention links to comments and replies.
-- Emphasize Nested Replies: Emphasize the parent of nested comment replies, to make them more visible.
-- Check Social Networks: Check if your new post is being shared to your connected Social Network accounts.
-- Check Max. Hashtags & Mentions: Check if the maximum number of Hashtags & Mentions has been reached before posting.
-- Show Friends and Followers: Where to display Friends and Followers counts.
+- Enable [Quick Mentions](#quick-mention-in-comments-and-replies): Add Quick Mention links to comments and replies.
+- [Emphasize Nested Replies](#make-things-easier-for-the-eye): Emphasize the parent of nested comment replies, to make them more visible.
+- [Check Social Networks](#basic-posting-content-checks): Check if your new post is being shared to your connected Social Network accounts.
+- [Check Max. Hashtags & Mentions](#basic-posting-content-checks): Check if the maximum number of Hashtags & Mentions has been reached before posting.
+- Show [Friends and Followers](#ffc-friends-and-followers-counts): Where to display Friends and Followers counts.
   - No Links (disabled): Disable this feature.
-  - All Links: Load Friends and Followers count on all possible links.
+  - All Links: Load Friends and Followers counts on all possible links.
   - Hover Cards Only: Only load the Friends and Followers counts when hovering over the username of a post or comment. (This option still displays counts on all other pages!)
 
 Buttons
@@ -88,18 +88,18 @@ To start the FFM, simply visit your Friends, Followers or Following tabs on your
 ![Correct Count][correct-count]
 - Display the correct number of Friends, Followers or users Following you.
 
-###Quick-Mention in comments and replies
-Quick-Mention adds easy to use links to each comment or reply, which makes mentioning users a breeze!
+###Quick Mention in comments and replies
+Quick Mention adds easy to use links to each comment or reply, which makes mentioning users a breeze!
 
-Mention the user who's post you are replying to, or the user who's reply you are replying to.
+Mention the user who's post you are commenting on, or the user who's comment you are replying to.
 
-![Quick-Mention for Comment][mention-comment]
-- Simply hover over your profile picture and select the Quick-Mention button ("@ >").
+![Quick Mention for Comment][mention-comment]
+- Simply hover over your profile picture and select the Quick Mention button [@ >].
 
 Mention any user from the comments list to easily add their mention to your comment or reply.
 
-![Quick-Mention for Reply][mention-reply]
-- First select the comment or reply text input, then hover over the comment of the user you would like to mention and click the Quick-Mention button ("@ +").
+![Quick Mention for Reply][mention-reply]
+- First select the comment or reply text input, then hover over the comment of the user you would like to mention and click the Quick Mention button [@ +].
 
 ###Auto-focus
 Auto-focusing the correct input fields is a great help to speed up your posting, commenting and messaging.
@@ -122,6 +122,8 @@ When creating a new post, there are a few things to remember before clicking the
 
 ###Make things easier for the eye
 A few things are not so pleasent to look at and some things are difficult to see.
+
+![Message Line Breaks][message-line-breaks]
 - Messages get displayed with correct line breaks to make them easier to read.
 
 ![Emphasize Nested Replies][nested-replies-parent]
@@ -131,12 +133,13 @@ A few things are not so pleasent to look at and some things are difficult to see
 Opening single posts is easier than ever!
 
 ![Open Single Post][open-single-post]
-- Just double click the header are of any post or share to open the single post itself.
+- Just double click the header of any post or share to open the single post itself.
 - To open the single post in a new window or tab, hold down the "Shift" key while double clicking.
 
 ###Stay up to date!
 Whenever a new update is available, you will be notified visually. The username link on the top right will get an orange background and the [About window](#about) will get a new button, making your update just 1 click away.
 
+![Menu item has update][menu-item-update]
 ![Update Notification][update-notification]
 
 ##Installation
@@ -150,8 +153,8 @@ Whenever a new update is available, you will be notified visually. The username 
   - Internet Explorer (experimental): Install [TrixIE](http://download3.fyxm.net/2/2588/TrixieSetup.msi). Restart Internet Explorer after the installation is complete. Save the script (from a link below) to 'C:\Program Files\Bhelpuri\Trixie\Scripts' (or equivalent). In Internet Explorer, you can now activate the script in the 'Tools->Trixie Options' menu.
 
 2. Tsu Helper script can be found here (just choose any one)
-  - https://greasyfork.org/en/scripts/6372-tsu-helper
   - https://openuserjs.org/scripts/noplanman/Tsu_Helper
+  - https://greasyfork.org/en/scripts/6372-tsu-helper
 
 ###~~With Bookmarklet~~
 As of version 1.5 the bookmarklet is not supported any more because the script has become too big!
@@ -167,15 +170,16 @@ Any comment is highly appreciated, thanks!
 
 ##Known Issues
 Using the “Friends and Followers Manager (FFM)“ or the “Friends and Followers Counts (FFC)“ may cause Tsu to become temporarily unavailable. This is due to the amount of information that is being requested from Tsu. Only use the FFM if you don't have that many friends. I'm working hard at making this work for everybody but unfortunately I have my hands tied at the moment, as Tsu has a few restrictions.
-If you do risk it and get a "503 Service Unavailable" message, it may take a few hours to regain access. Just be patient.
+If you do risk it and get a "503 Service Unavailable" message, don't panic. After a few hours maximum, you can access Tsu again.
+Just be patient =)
 
 Use them at your own risk!
 
 
 [correct-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/correct-count.png "Correct Count"
 [ffm-header]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffm-header.png "FFM Header"
-[mention-comment]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-comment.png "Quick-Mention for Comment"
-[mention-reply]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-reply.png "Quick-Mention for Reply"
+[mention-comment]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-comment.png "Quick Mention for Comment"
+[mention-reply]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-reply.png "Quick Mention for Reply"
 [nested-replies-parent]: https://github.com/noplanman/tsu-helper/raw/master/assets/nested-replies-parent.png "Emphasize Nested Replies"
 [open-single-post]: https://github.com/noplanman/tsu-helper/raw/master/assets/open-single-post.png "Open Single Post"
 [auto-focus-title]: https://github.com/noplanman/tsu-helper/raw/master/assets/auto-focus-title.png "Auto-Focus Title"
