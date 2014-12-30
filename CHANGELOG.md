@@ -1,5 +1,15 @@
 #Change Log
 
+##Version 2.0
+
+- Fully integrated Friends and Followers script.
+- Added an "About" window.
+- Added possibility to donate.
+- Choose which tweaks to activate in the "Settings".
+- Large code rewrite and optimisation.
+
+---
+
 ##Version 1.5
 
 - Introduced Friends and Followers Manager (FFM).
