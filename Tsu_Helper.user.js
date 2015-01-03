@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     2.0
+// @version     2.1
 // @author      Armando Lüscher
 // @grant       none
 // ==/UserScript==
@@ -177,7 +177,7 @@ jQuery( document ).ready(function( $ ) {
    */
   var Updater = {
     // The local version.
-    localVersion : 2.0,
+    localVersion : 2.1,
 
     // The remote version (loaded in the "check" method).
     remoteVersion : null,
@@ -247,22 +247,23 @@ jQuery( document ).ready(function( $ ) {
     init : function() {
       doLog( 'Getting current page.', 'i' );
 
-      if ( $( 'body.newsfeed' ).length ) {                 Page.current = 'home';      // Home feed.
-      } else if ( $( 'body.search_hashtag' ).length ) {    Page.current = 'hashtag';   // Hashtag page.
-      } else if ( $( 'body.profile.diary' ).length ) {     Page.current = 'diary';     // Diary.
-      } else if ( $( 'body.show_post' ).length ) {         Page.current = 'post';      // Single post.
-      } else if ( $( 'body.discover' ).length ) {          Page.current = 'discover';  // Discover Users.
+      if ( $( 'body.newsfeed' ).length ) {                  Page.current = 'home';          // Home feed.
+      } else if ( $( 'body.notifications.show' ).length ) { Page.current = 'notifications'; // Show notifications.
+      } else if ( $( 'body.search_hashtag' ).length ) {     Page.current = 'hashtag';       // Hashtag page.
+      } else if ( $( 'body.profile.diary' ).length ) {      Page.current = 'diary';         // Diary.
+      } else if ( $( 'body.show_post' ).length ) {          Page.current = 'post';          // Single post.
+      } else if ( $( 'body.discover' ).length ) {           Page.current = 'discover';      // Discover Users.
         Observer.queryToLoadFF  = 'body.discover .tree_child_fullname';
         // No observer necessary!
         // TODO: Also, with observer, this page goes crazy...
         Observer.queryToObserve = '';
-      } else if ( $( 'body.tree' ).length ) {              Page.current = 'tree';      // Family tree.
+      } else if ( $( 'body.tree' ).length ) {               Page.current = 'tree';          // Family tree.
         Observer.queryToLoadFF  = 'body.tree .tree_child_fullname';
         Observer.queryToObserve = '.tree_page';
-      } else if ( $( 'body.profile.friends' ).length ) {   Page.current = 'friends';   // Friends.
-      } else if ( $( 'body.profile.followers' ).length ) { Page.current = 'followers'; // Followers.
-      } else if ( $( 'body.profile.following' ).length ) { Page.current = 'following'; // Following.
-      } else if ( $( 'body.messages' ).length ) {          Page.current = 'messages';  // Messages.
+      } else if ( $( 'body.profile.friends' ).length ) {    Page.current = 'friends';       // Friends.
+      } else if ( $( 'body.profile.followers' ).length ) {  Page.current = 'followers';     // Followers.
+      } else if ( $( 'body.profile.following' ).length ) {  Page.current = 'following';     // Following.
+      } else if ( $( 'body.messages' ).length ) {           Page.current = 'messages';      // Messages.
         Observer.queryToLoad    = '.messages_content .message_box';
         Observer.queryToLoadFF  = '.message_box .content';
         Observer.queryToObserve = '.messages_content';
@@ -1290,7 +1291,7 @@ jQuery( document ).ready(function( $ ) {
       }
 
       // Add a new <span> element to the user link.
-      var $userLinkSpan = $( '<span/>', { html: '<img class="th-ffc-loader-wheel" src="/assets/loader.gif" />', 'class': 'th-ffc-span' } );
+      var $userLinkSpan = $( '<span/>', { html: '<img class="th-ffc-loader-wheel" src="/assets/loader.gif" alt="Loading..." />', 'class': 'th-ffc-span' } );
       $userLink.after( $userLinkSpan );
 
       // Special case for these pages, to make it look nicer and fitting.
@@ -1517,6 +1518,81 @@ jQuery( document ).ready(function( $ ) {
     setTimeout( function() { $postText.focus(); }, 50 );
   });
 
+  // Add custom number of notifications to display.
+  if ( Page.is( 'notifications' ) ) {
+
+    var $ajaxNCRequest = null;
+    var $notificationsList = $( '#new_notifications_list' );
+
+    // List the available options.
+    var selectOptions = '';
+    [ 30, 50, 100, 200, 300, 400, 500 ].forEach(function( val ) {
+      selectOptions += '<option value="' + val + '">' + val + '</option>';
+    });
+
+    var $ncSelect = $( '<select/>', {
+      'id' : 'th-nc-select',
+      html : selectOptions
+    })
+    .change(function(){
+      // If a request is already busy, cancel it and restart the new one.
+      if ( $ajaxNCRequest ) {
+        $ajaxNCRequest.abort();
+      }
+
+      // Show loader wheel.
+      $notificationsList.html( '<img src="/assets/loader.gif" alt="Loading..." />' );
+
+      doLog( 'Loading ' + $ncSelect.val() + ' notifications.', 'i' );
+
+      // Request the selected amount of notifications.
+      $ajaxNCRequest = $.getJSON( '/notifications/request/?count=' + $ncSelect.val(), function( data ) {
+
+        doLog( data, 'e' );
+
+        // Clear the loader wheel.
+        $notificationsList.empty();
+
+        // Make sure we have access to the notifications.
+        if ( ! data.hasOwnProperty( 'notifications' ) ) {
+          // Some error occured.
+          $notificationsList.html( '<div>Error loading notifications, please try again later.</div>' );
+          return;
+        }
+
+        // No notifications.
+        if ( 0 === data.notifications.length ) {
+          $notificationsList.html( '<div>You don\'t have any notifications.</div>');
+          return;
+        }
+
+        // Append the notifications to the list. Function used is the one used by Tsu.
+        $( data.notifications ).each(function( i, item ) {
+          $notificationsList.append(
+            window.notifications_fr._templates['new_comment_in_post'](
+              item.url,
+              item.user,
+              item.message,
+              item.created_at_int
+            )
+          );
+        });
+      })
+      .fail(function() {
+        $notificationsList.html( '<div>Error loading notifications, please try again later.</div>' );
+      });
+
+    });
+
+    $( '<div/>', {
+      'id'  : 'th-nc-div',
+      title : 'How many notifications to show',
+      html  : $ncSelect
+    })
+    .prepend( 'Show: ' ) // Add the "Show: " label.
+    .wrapInner( '<label/>' )
+    .appendTo( $( '#new_notifications_wrapper' ) );
+  }
 
   /**
    * Add a specific class to all nested reply parent elements to emphasize them.
@@ -1662,7 +1738,7 @@ jQuery( document ).ready(function( $ ) {
       // About window.
       '#th-about-window > div { margin: 5px 0; }' +
       '#th-about-window .card { box-sizing: border-box; min-width: 100%; border: 1px solid #d7d8d9; border-top-left-radius: 30px; border-bottom-left-radius: 30px; }' +
-      '#th-about-window .card .button { width: 100px; }' +
+      '#th-about-window .card .button { width: 123px; }' +
       '.th-update { background-color: #f1b054 !important; color: #fff !important; }' +
       '.th-settings { background-image: url("//tsu-production-app.s3.amazonaws.com/assets/sprite-icons-8b41dfa609c88b45900ac483e50c63db.png") !important; margin: 0; padding: 0 !important; height: 28px; width: 28px; background-position: 0px 0px; }' +
       '.th-donate-buttons { border-top-left-radius: 20px; border-bottom-left-radius: 20px; }' +
@@ -1673,7 +1749,12 @@ jQuery( document ).ready(function( $ ) {
       '#th-settings-window label, #th-settings-window input { display: inline-block; cursor: pointer; }' +
       '#th-settings-window form > div { margin: 5px 0; }' +
       '#th-settings-back-button { float: left !important; }' +
-      '.th-settings-help { background-color: #ccc; padding: 2px; margin-left: 5px; border-radius: 10px; font-weight: bold; cursor: help; }'
+      '.th-settings-help { background-color: #ccc; padding: 2px; margin-left: 5px; border-radius: 10px; font-weight: bold; cursor: help; }' +
+
+      // Show custom number of notifications.
+      '#new_notifications_wrapper { position: relative; }' +
+      '#th-nc-div { position: absolute; top: 0; right: 15px; }' +
+      '#th-nc-div select { cursor: pointer; }'
     ).appendTo( 'head' );
   }
 
@@ -1692,7 +1773,7 @@ jQuery( document ).ready(function( $ ) {
         '<div>' +
           'Version <strong>' + Updater.localVersion + '</strong> (<a href="https://j.mp/tsu-helper-changelog" target="_blank">changelog</a>)<br />' +
           '&copy;2014-2015 Armando L&uuml;scher (<a href="https://tsu.co/noplanman">@noplanman</a>)<br />' +
-          'Disclaimer: Tsu Helper is in no way affiliated with Tsu LLC. Use it at your own risk.' +
+          'Disclaimer: Tsu Helper is in no way affiliated with Tsu LLC.<br />Use it at your own risk.' +
         '</div>' +
         '<br />' +
         '<div>For more details about this script and an overview of all the features simply <a href="https://j.mp/tsu-helper-readme" target="_blank">click here</a>.</div>' +
