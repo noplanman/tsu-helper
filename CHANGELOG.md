@@ -1,5 +1,9 @@
 #Change Log
 
+##Version 2.1
+
+- Choose how many Notifications to show on the Notifications page.
+
 ##Version 2.0
 
 - Fully integrated Friends and Followers script.
