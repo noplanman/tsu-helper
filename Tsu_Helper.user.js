@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     2.1
+// @version     2.2
 // @author      Armando Lüscher
 // @grant       none
 // ==/UserScript==
@@ -84,13 +84,14 @@ jQuery( document ).ready(function( $ ) {
   var Settings = {
     // All available settings with default values.
     settingsDefault : {
-      debugLevel   : 'disabled',  // Debugging level. (disabled,[l]og,[i]nfo,[w]arning,[e]rror)
-      hideAds      : false,       // Hide all ads.
-      showFFC      : 'hovercard', // Show Friends and Followers count. (disabled,all,hovercard)
-      quickMention : true,        // Add quick mention links.
-      emphasizeNRP : true,        // Emphasize nested replies parents.
-      checkSocial  : true,        // Check the social network sharing.
-      checkMaxHM   : true         // Check for maximum hashtags and mentions.
+      debugLevel    : 'disabled',  // Debugging level. (disabled,[l]og,[i]nfo,[w]arning,[e]rror)
+      hideAds       : false,       // Hide all ads.
+      showFFC       : 'hovercard', // Show Friends and Followers count. (disabled,all,hovercard)
+      quickMention  : true,        // Add quick mention links.
+      emphasizeNRP  : true,        // Emphasize nested replies parents.
+      checkSocial   : true,        // Check the social network sharing.
+      checkMaxHM    : true,        // Check for maximum hashtags and mentions.
+      notifReloaded : 10           // How many items to display on the Notifications popup (0=disabled)
     },
 
     // Init with default settings on "load".
@@ -177,7 +178,7 @@ jQuery( document ).ready(function( $ ) {
    */
   var Updater = {
     // The local version.
-    localVersion : 2.1,
+    localVersion : 2.2,
 
     // The remote version (loaded in the "check" method).
     remoteVersion : null,
@@ -247,23 +248,24 @@ jQuery( document ).ready(function( $ ) {
     init : function() {
       doLog( 'Getting current page.', 'i' );
 
-      if ( $( 'body.newsfeed' ).length ) {                  Page.current = 'home';          // Home feed.
-      } else if ( $( 'body.notifications.show' ).length ) { Page.current = 'notifications'; // Show notifications.
-      } else if ( $( 'body.search_hashtag' ).length ) {     Page.current = 'hashtag';       // Hashtag page.
-      } else if ( $( 'body.profile.diary' ).length ) {      Page.current = 'diary';         // Diary.
-      } else if ( $( 'body.show_post' ).length ) {          Page.current = 'post';          // Single post.
-      } else if ( $( 'body.discover' ).length ) {           Page.current = 'discover';      // Discover Users.
+      if ( $( 'body.newsfeed' ).length ) {                 Page.current = 'home';          // Home feed.
+      } else if ( $( 'body.notifications.show' ).length
+        || $( 'body.notifications.index' ).length ) {      Page.current = 'notifications'; // Show notifications.
+      } else if ( $( 'body.search_hashtag' ).length ) {    Page.current = 'hashtag';       // Hashtag page.
+      } else if ( $( 'body.profile.diary' ).length ) {     Page.current = 'diary';         // Diary.
+      } else if ( $( 'body.show_post' ).length ) {         Page.current = 'post';          // Single post.
+      } else if ( $( 'body.discover' ).length ) {          Page.current = 'discover';      // Discover Users.
         Observer.queryToLoadFF  = 'body.discover .tree_child_fullname';
         // No observer necessary!
         // TODO: Also, with observer, this page goes crazy...
         Observer.queryToObserve = '';
-      } else if ( $( 'body.tree' ).length ) {               Page.current = 'tree';          // Family tree.
+      } else if ( $( 'body.tree' ).length ) {              Page.current = 'tree';          // Family tree.
         Observer.queryToLoadFF  = 'body.tree .tree_child_fullname';
         Observer.queryToObserve = '.tree_page';
-      } else if ( $( 'body.profile.friends' ).length ) {    Page.current = 'friends';       // Friends.
-      } else if ( $( 'body.profile.followers' ).length ) {  Page.current = 'followers';     // Followers.
-      } else if ( $( 'body.profile.following' ).length ) {  Page.current = 'following';     // Following.
-      } else if ( $( 'body.messages' ).length ) {           Page.current = 'messages';      // Messages.
+      } else if ( $( 'body.profile.friends' ).length ) {   Page.current = 'friends';       // Friends.
+      } else if ( $( 'body.profile.followers' ).length ) { Page.current = 'followers';     // Followers.
+      } else if ( $( 'body.profile.following' ).length ) { Page.current = 'following';     // Following.
+      } else if ( $( 'body.messages' ).length ) {          Page.current = 'messages';      // Messages.
         Observer.queryToLoad    = '.messages_content .message_box';
         Observer.queryToLoadFF  = '.message_box .content';
         Observer.queryToObserve = '.messages_content';
@@ -437,6 +439,16 @@ jQuery( document ).ready(function( $ ) {
     },
 
     /**
+     * Call getPage but with a delay to prevent flooding the server.
+     * @param  {integer} delay   Delay in ms.
+     * @param  {integer} pageNr  The page number to get.
+     * @param  {boolean} isChain If this a chain request, continue getting consecutive pages.
+     */
+    getPageDelay : function( delay, pageNr, isChain ) {
+      setTimeout( function() { FFM.getPage( pageNr, isChain ); }, delay );
+    },
+
+    /**
      * Get a page of Follower/Following cards.
      * @param  {integer} pageNr  The page number to get.
      * @param  {boolean} isChain If this a chain request, continue getting consecutive pages.
@@ -450,7 +462,7 @@ jQuery( document ).ready(function( $ ) {
 
       // Make sure we have a valid page number.
       if ( pageNr < 1 ) {
-        doLog( 'Invalid page number.', 'e' );
+        doLog( 'Invalid page number:' + pageNr, 'e' );
         return;
       }
 
@@ -552,6 +564,10 @@ jQuery( document ).ready(function( $ ) {
      * Start the FFM.
      */
     start : function() {
+      if ( ! confirm( 'WARNING: This may temporarily block access to Tsu!\n\nAre you really sure you want to start the F&F Manager?' ) ) {
+        return;
+      }
+
       FFM.busy = FFM.chainBusy = true;
       FFM.totalFFFs = FFM.counter.received = FFM.counter.sent = FFM.counter.fandf = 0;
       FFM.updateStatus( null );
@@ -565,7 +581,7 @@ jQuery( document ).ready(function( $ ) {
 
       // Load all pages and start the chain loading on the last page.
       for ( var i = FFM.totalPages; i >= 1; i-- ) {
-        FFM.getPage( i, i === FFM.totalPages );
+        FFM.getPageDelay( 50, i, i === FFM.totalPages );
       }
 
       FFM.$linkStart.hide();
@@ -630,7 +646,7 @@ jQuery( document ).ready(function( $ ) {
      */
     unfollowFriends : function() {
       var $toUnfollow = $( '.th-ffm-card.th-ffm-card-fandf .follow_button.grey' );
-      if ( $toUnfollow.length && confirm( 'WARNING: This may temporarily block access to Tsu!\n\nAre you really sure you want to Unfollow all ' + $toUnfollow.length + ' Friends on this page?\nThey will still be your Friends.\n\n(this cannot be undone)' ) ) {
+      if ( $toUnfollow.length && confirm( 'WARNING: This may temporarily block access to Tsu!\n\nAre you really sure you want to Unfollow all ' + $toUnfollow.length + ' Friends on this page?\nThey will still be your Friends.\n\n(this cannot be undone and may take some time, be patient)' ) ) {
         var unfollowed = 0;
         $toUnfollow.each(function() {
           this.click();
@@ -886,7 +902,7 @@ jQuery( document ).ready(function( $ ) {
 
               // Run all functions responding to DOM updates.
               // When loading a card, only if it's not a hover card, as those get loaded above.
-              if ( mutationNodesHaveClass( mutations[ m ], 'post comment message_content_feed message_box tree_bar' )
+              if ( mutationNodesHaveClass( mutations[ m ], 'post comment message_content_feed message_box tree_bar tree_child_wrapper' )
                 || ( mutationNodesHaveClass( mutations[ m ], 'card' ) && $hoverCard.length == 0 ) ) {
                 FFC.loadAll();
                 QM.load();
@@ -934,7 +950,7 @@ jQuery( document ).ready(function( $ ) {
   var Posting = {
 
     // Are we busy waiting for the popup to appear?
-    waitingForPostPopup : false,
+    waitingForPopup : false,
 
     /**
      * Initialise.
@@ -945,12 +961,38 @@ jQuery( document ).ready(function( $ ) {
         return Posting.postFormSubmit( $( this ), event );
       });
 
-      // When using the "Create" button, wait for the post input form.
-      $( '.create_post_popup' ).click(function() {
-        if ( ! Posting.waitingForPostPopup ) {
-          Posting.waitingForPostPopup = true;
-          Posting.waitForPostPopup();
+      // Set focus to message entry field on page load.
+      if ( Page.is( 'home diary' ) ) {
+        $( '#text' ).focus();
+      }
+
+      // When using the "Create" or "Message" buttons, wait for the post input form.
+      $( 'body' ).on( 'click', '.create_post_popup, .message_pop_up', function() {
+        if ( ! Posting.waitingForPopup ) {
+          if ( $( this ).hasClass( 'create_post_popup' ) ) {
+            Posting.waitForPopup( 'post' );
+          } else if ( $( this ).hasClass( 'message_pop_up' ) ) {
+            Posting.waitForPopup( 'message' );
+          }
         }
+      });
+
+      // Auto-focus title entry field when adding title.
+      $( 'body' ).on( 'click', '.create_post .options .add_title', function() {
+        var $postForm  = $( this ).closest( '#create_post_form' );
+        var $postTitle = $postForm.find( '#title' );
+        // Focus title or text field, depending if the title is being added or removed.
+        if ( $postTitle.is( ':visible' ) ) {
+          setTimeout( function() { $postForm.find( '#text' ).focus(); }, 50 );
+        } else {
+          setTimeout( function() { $postTitle.focus(); }, 50 );
+        }
+      });
+
+      // Auto-focus message entry field when adding/removing image.
+      $( 'body' ).on( 'click', '.create_post .options .filebutton, .cancel_icon_createpost', function() {
+        var $postText = $( this ).closest( '#create_post_form' ).find( '#text' );
+        setTimeout( function() { $postText.focus(); }, 50 );
       });
 
 
@@ -1108,19 +1150,38 @@ jQuery( document ).ready(function( $ ) {
     /**
      * Wait for the fancybox popup to create a new post.
      */
-    waitForPostPopup : function() {
-      var $form = $( '.fancybox-overlay #create_post_form' );
+    waitForPopup : function( action ) {
+      Posting.waitingForPopup = true;
+
+      var formSelector;
+      var inputSelector;
+      switch ( action ) {
+        case 'post'    :
+          formSelector  = '.fancybox-wrap #create_post_form';
+          inputSelector = '#text';
+          break;
+        case 'message' :
+          formSelector  = '.fancybox-wrap #new_message';
+          inputSelector = '#message_body';
+          break;
+      }
+
+      var $form = $( formSelector );
       if ( $form.length ) {
-        $form.find( '#text' ).focus();
-        $form.submit(function( event ) {
-          return Posting.postFormSubmit( $( this ), event );
-        });
-        Posting.waitingForPostPopup = false;
+        $form.find( inputSelector ).focus();
+
+        // Apply checks to posts only!
+        if ( 'post' === action ) {
+          $form.submit(function( event ) {
+            return Posting.postFormSubmit( $( this ), event );
+          });
+        }
+        Posting.waitingForPopup = false;
         return;
       }
 
       // Wait around for it longer...
-      setTimeout( function() { Posting.waitForPostPopup(); }, 500 );
+      setTimeout( function() { Posting.waitForPopup( action ); }, 500 );
     }
   };
 
@@ -1135,9 +1196,9 @@ jQuery( document ).ready(function( $ ) {
 
     // Keep track if this user object has already finished loading.
     this.finished = false;
-    this.userID   = userID.trim();
-    this.userName = userName.trim();
-    this.userUrl  = userUrl.trim();
+    this.userID   = userID;
+    this.userName = userName;
+    this.userUrl  = userUrl;
 
     // Add to all userObjects list.
     Users.userObjects[ userID ] = this;
@@ -1155,8 +1216,8 @@ jQuery( document ).ready(function( $ ) {
      */
     this.setFriendsInfo = function( $friendsLink, friendsUrl, friendsCount ) {
       this.$friendsLink   = $friendsLink;
-      this.friendsUrl     = friendsUrl.trim();
-      this.friendsCount   = friendsCount.trim();
+      this.friendsUrl     = friendsUrl;
+      this.friendsCount   = friendsCount;
     };
 
     /**
@@ -1167,8 +1228,8 @@ jQuery( document ).ready(function( $ ) {
      */
     this.setFollowersInfo = function( $followersLink, followersUrl, followersCount ) {
       this.$followersLink   = $followersLink;
-      this.followersUrl     = followersUrl.trim();
-      this.followersCount   = followersCount.trim();
+      this.followersUrl     = followersUrl;
+      this.followersCount   = followersCount;
     };
 
     /**
@@ -1295,7 +1356,7 @@ jQuery( document ).ready(function( $ ) {
       $userLink.after( $userLinkSpan );
 
       // Special case for these pages, to make it look nicer and fitting.
-      if ( onHoverCard || Page.is( 'fff discover' ) ) {
+      if ( onHoverCard || Page.is( 'fff discover tree' ) ) {
         $userLinkSpan.before( '<br class="th-ffc-br" />' );
       }
 
@@ -1303,12 +1364,11 @@ jQuery( document ).ready(function( $ ) {
       var userName = $userLink.text().trim();
       var userUrl  = $userLink.attr( 'href' );
 
-      // If the userID hasn't been passed, try to get a numeric user id, or extract if from the url.
-      var userID = $userElement.attr( 'user_id' ) || userUrl.split( '/' )[1];
+      // Extract the userID from the url. Special case for discover page!
+      var userID = ( Page.is( 'discover' ) ) ? $userElement.attr( 'user_id' ) : userUrl.split( '/' )[1];
 
       // Check if the current user has already been loaded.
       var userObject = Users.getUserObject( userID, true );
-
 
       // Add this span to the list that needs updating when completed.
       if ( userObject instanceof UserObject ) {
@@ -1327,27 +1387,39 @@ jQuery( document ).ready(function( $ ) {
       userObject = new UserObject( userID, userName, userUrl );
 
       // Load the numbers from the user profile page.
-      $.get( userUrl, function( response ) {
+      setTimeout( function() { $.get( userUrl, function( response ) {
         // Get rid of all images first, no need to load those, then find the links.
         var $numbers = $( response.replace( /<img[^>]*>/g, '' ) ).find( '.profile_details .numbers a' );
 
+        // If the user doesn't exist, just remove the span.
+        if ( 0 === $numbers.length ) {
+          $userLinkSpan.remove();
+          return;
+        }
+
+        // Set up the Friends link.
         var $friends = $numbers.eq( 0 );
         var friendsUrl = $friends.attr( 'href' );
         var friendsCount = $friends.find( 'span' ).text();
         var $friendsLink = $( '<a/>', {
-          //title: 'Friends', leave commented out, as this is a problem on hover cards.
           href: friendsUrl,
           html: friendsCount
         });
 
+        // Set up the Followers link.
         var $followers = $numbers.eq( 1 );
         var followersUrl = $followers.attr( 'href' );
         var followersCount = $followers.find( 'span' ).text();
         var $followersLink = $( '<a/>', {
-          //title: 'Followers', leave commented out, as this is a problem on hover cards.
           href: followersUrl,
           html: followersCount
         });
+
+        // Add titles to pages without posts and not on hover cards.
+        if ( ! onHoverCard && ! Page.is( 'has-posts' ) ) {
+          $friendsLink.attr( 'title', 'Friends' );
+          $followersLink.attr( 'title', 'Followers' );
+        }
 
         // Add the Friends and Followers details, then refresh all userlink spans.
         userObject.setFriendsInfo(   $friendsLink,   friendsUrl,   friendsCount   );
@@ -1357,7 +1429,7 @@ jQuery( document ).ready(function( $ ) {
       .always(function() {
         // Make sure to set the user as finished loading.
         Users.finishedLoading( userID );
-      });
+      }); }, 100 );
     },
 
     /**
@@ -1473,7 +1545,6 @@ jQuery( document ).ready(function( $ ) {
   };
 
 
-
   // Initialise after all variables are defined.
   Page.init();
   Observer.init();
@@ -1495,60 +1566,84 @@ jQuery( document ).ready(function( $ ) {
   FFM.init();
 
 
-  // Set focus to message entry field on page load.
-  if ( Page.is( 'home diary' ) ) {
-    $( '#text' ).focus();
+  // Load Notifications Reloaded?
+  if ( settings.notifReloaded > 0 ) {
+    notifications.urls.notifications = '/notifications/request/?count=' + settings.notifReloaded;
+    notifications.get().success(function() {
+      $.event.trigger( 'notificationsRender' );
+    });
   }
 
-  // Auto-focus title entry field when adding title.
-  $( 'body' ).on( 'click', '.create_post .options .add_title', function() {
-    var $postForm  = $( this ).closest( '#create_post_form' );
-    var $postTitle = $postForm.find( '#title' );
-    // Focus title or text field, depending if the title is being added or removed.
-    if ( $postTitle.is( ':visible' ) ) {
-      setTimeout( function() { $postForm.find( '#text' ).focus(); }, 50 );
-    } else {
-      setTimeout( function() { $postTitle.focus(); }, 50 );
-    }
-  });
-
-  // Auto-focus message entry field when adding/removing image.
-  $( 'body' ).on( 'click', '.create_post .options .filebutton, .cancel_icon_createpost', function() {
-    var $postText = $( this ).closest( '#create_post_form' ).find( '#text' );
-    setTimeout( function() { $postText.focus(); }, 50 );
-  });
-
-  // Add custom number of notifications to display.
+  // Add Notifications Reloaded to the notifications page.
   if ( Page.is( 'notifications' ) ) {
 
     var $ajaxNCRequest = null;
     var $notificationsList = $( '#new_notifications_list' );
 
-    // List the available options.
-    var selectOptions = '';
-    [ 30, 50, 100, 200, 300, 400, 500 ].forEach(function( val ) {
-      selectOptions += '<option value="' + val + '">' + val + '</option>';
+
+    // Add the empty filter message
+    var $emptyFilterDiv = $( '<div>No notifications match the selected filter. Coose a different one.</div>' );
+
+    // Select input to filter kinds.
+    var $kindSelect = $( '<select/>', {
+      'id'  : 'th-nr-nk-select',
+      title : 'Filter by the kind of notification'
     });
 
-    var $ncSelect = $( '<select/>', {
-      'id' : 'th-nc-select',
-      html : selectOptions
-    })
-    .change(function(){
+    // Select input to filter users.
+    var $userSelect = $( '<select/>', {
+      'id'  : 'th-nr-nu-select',
+      title : 'Filter by user'
+    });
+
+
+    // List the available count options.
+    var selectCount = '';
+    [ 30, 50, 100, 200, 300, 400, 500 ].forEach(function( val ) {
+      selectCount += '<option value="' + val + '">' + val + '</option>';
+    });
+
+    /**
+     * Filter the current items according to the selected filters.
+     */
+    var filterNotifications = function() {
+      var $notificationItems = $notificationsList.find( '.notifications_item' ).show();
+
+      if ( '' !== $kindSelect.val() ) {
+        $notificationItems.not( '[data-kind="' + $kindSelect.val() + '"]' ).hide();
+      }
+
+      if ( '' !== $userSelect.val() ) {
+        $notificationItems.not( '[data-user-id="' + $userSelect.val() + '"]' ).hide();
+      }
+
+      if ( $notificationItems.find( ':visible' ).length ) {
+        $emptyFilterDiv.hide();
+      } else {
+        $emptyFilterDiv.show();
+      }
+    };
+
+    /**
+     * Refresh the selected number of notifications.
+     */
+    var reloadNotifications = function() {
       // If a request is already busy, cancel it and restart the new one.
       if ( $ajaxNCRequest ) {
         $ajaxNCRequest.abort();
       }
 
+      doLog( 'Loading ' + $countSelect.val() + ' notifications.', 'i' );
+
       // Show loader wheel.
       $notificationsList.html( '<img src="/assets/loader.gif" alt="Loading..." />' );
 
-      doLog( 'Loading ' + $ncSelect.val() + ' notifications.', 'i' );
+      // Disable select inputs but remember the selections.
+      var lastKindSelected = $kindSelect.attr( 'disabled', 'disabled' ).val();
+      var lastUserSelected = $userSelect.attr( 'disabled', 'disabled' ).val();
 
       // Request the selected amount of notifications.
-      $ajaxNCRequest = $.getJSON( '/notifications/request/?count=' + $ncSelect.val(), function( data ) {
-
-        doLog( data, 'e' );
+      $ajaxNCRequest = $.getJSON( '/notifications/request/?count=' + $countSelect.val(), function( data ) {
 
         // Clear the loader wheel.
         $notificationsList.empty();
@@ -1566,32 +1661,104 @@ jQuery( document ).ready(function( $ ) {
           return;
         }
 
+        // Texts for all possible notifications.
+        var kindsTexts = {
+          friend_request_accepted              : 'Friend Requests accepted',
+          new_comment_on_post                  : 'Comments on your Posts',
+          new_comment_on_post_you_commented_on : 'Comments on other Posts',
+          new_follower                         : 'New Followers',
+          new_like_on_post                     : 'Likes on your Posts',
+          new_like_on_comment                  : 'Likes on your Comments',
+          new_post_on_your_wall                : 'Posts on your Wall',
+          someone_mentioned_you_in_a_post      : 'Mentioned in a Post or Comment',
+          someone_shared_your_post             : 'Shares of your Posts'
+        };
+
+        // The available items to populate the select fields.
+        var availableKinds = {};
+        var availableUsers = {};
+
         // Append the notifications to the list. Function used is the one used by Tsu.
         $( data.notifications ).each(function( i, item ) {
-          $notificationsList.append(
-            window.notifications_fr._templates['new_comment_in_post'](
-              item.url,
-              item.user,
-              item.message,
-              item.created_at_int
-            )
-          );
+
+          // Remember all the available kinds and the number of occurrences.
+          if ( availableKinds.hasOwnProperty( item.kind ) ) {
+            availableKinds[ item.kind ]++;
+          } else {
+            availableKinds[ item.kind ] = 1;
+          }
+
+          // Remember all the available users and the number of occurrences.
+          if ( availableUsers.hasOwnProperty( item.user.id ) ) {
+            availableUsers[ item.user.id ].count++;
+          } else {
+            availableUsers[ item.user.id ] = {
+              username  : item.user.first_name + ' ' + item.user.last_name,
+              count     : 1
+            };
+          }
+
+          var $notificationItem = $( window.notifications_fr._templates['new_comment_in_post'](
+            item.url,
+            item.user,
+            item.message,
+            item.created_at_int
+          ))
+          .attr( { 'data-user-id' : item.user.id, 'data-kind' : item.kind } );
+
+          $notificationsList.append( $notificationItem );
         });
+
+        // Add the empty filter message.
+        $notificationsList.append( $emptyFilterDiv );
+
+        // List the available kinds, adding the number of occurances.
+        $kindSelect.removeAttr( 'disabled' ).html( '<option value="">All Kinds</option>' );
+        for ( var key in availableKinds ) {
+          if ( kindsTexts.hasOwnProperty( key ) && availableKinds.hasOwnProperty( key ) ) {
+            $kindSelect.append( '<option value="' + key + '"' + selected( key, lastKindSelected ) + '>' + kindsTexts[ key ] + ' (' + availableKinds[ key ] + ')</option>' );
+          }
+        }
+
+        // List the available users, adding the number of occurances.
+        $userSelect.removeAttr( 'disabled' ).html( '<option value="">All Users - (' + Object.keys( availableUsers ).length + ' Users)</option>' );
+
+        // Sort alphabetically.
+        var availableUsersSorted = [];
+        for ( var userID in availableUsers ) {
+          availableUsersSorted.push( [ userID, availableUsers[ userID ].username.toLowerCase() ] );
+        }
+        availableUsersSorted.sort( function( a, b ) { return ( a[1] > b[1] ) ? 1 : ( ( b[1] > a[1] ) ? -1 : 0 ); } );
+
+        availableUsersSorted.forEach(function( val ) {
+          var userID = val[0];
+          if ( availableUsers.hasOwnProperty( userID ) ) {
+            $userSelect.append( '<option value="' + userID + '"' + selected( userID, lastUserSelected ) + '>' + availableUsers[ userID ].username + ' (' + availableUsers[ userID ].count + ')</option>' );
+          }
+        });
+
+        // Filter the notifications to make sure that the previously selected filter gets reapplied.
+        filterNotifications();
       })
       .fail(function() {
         $notificationsList.html( '<div>Error loading notifications, please try again later.</div>' );
       });
+    };
 
-    });
-
-    $( '<div/>', {
-      'id'  : 'th-nc-div',
-      title : 'How many notifications to show',
-      html  : $ncSelect
+    var $countSelect = $( '<select/>', {
+      'id' : 'th-nc-select',
+      html : selectCount
     })
-    .prepend( 'Show: ' ) // Add the "Show: " label.
-    .wrapInner( '<label/>' )
+    .change( reloadNotifications );
+
+    $( '<div/>', { 'id'  : 'th-nr-div' } )
+    .append( $kindSelect.change( filterNotifications ) )
+    .append( $userSelect.change( filterNotifications ) )
+    .append( $( '<label/>', { html : 'Show:', title : 'How many notifications to show' } ).append( $countSelect ) )
+    .append( $( '<i/>', { 'id' : 'th-nr-reload', title : 'Reload notifications' } ).click( reloadNotifications ) ) // Add reload button.
     .appendTo( $( '#new_notifications_wrapper' ) );
+
+    reloadNotifications();
   }
 
   /**
@@ -1730,31 +1897,57 @@ jQuery( document ).ready(function( $ ) {
       '.th-ffm-card-fandf { background: #ffc; }' +
 
       // About & Settings windows.
-      '#th-about-window,    #th-settings-window    { width: 360px; height: auto; }' +
-      '#th-about-window *,  #th-settings-window *  { box-sizing: border-box; }' +
-      '#th-about-window h1, #th-settings-window h1 { margin: 5px; }' +
+      '#th-aw,    #th-sw    { width: 400px; height: auto; }' +
+      '#th-aw *,  #th-sw *  { box-sizing: border-box; }' +
+      '#th-aw h1, #th-sw h1 { margin: 5px; }' +
       '.th-buttons-div { padding: 5px; text-align: center; display: inline-block; border: 1px solid #d7d8d9; width: 100%; line-height: 23px; background-color: #fff; border-radius: 2px; margin-top: 10px; }' +
 
       // About window.
-      '#th-about-window > div { margin: 5px 0; }' +
-      '#th-about-window .card { box-sizing: border-box; min-width: 100%; border: 1px solid #d7d8d9; border-top-left-radius: 30px; border-bottom-left-radius: 30px; }' +
-      '#th-about-window .card .button { width: 123px; }' +
       '.th-update { background-color: #f1b054 !important; color: #fff !important; }' +
-      '.th-settings { background-image: url("//tsu-production-app.s3.amazonaws.com/assets/sprite-icons-8b41dfa609c88b45900ac483e50c63db.png") !important; margin: 0; padding: 0 !important; height: 28px; width: 28px; background-position: 0px 0px; }' +
-      '.th-donate-buttons { border-top-left-radius: 20px; border-bottom-left-radius: 20px; }' +
-      '.th-donate-paypal { float: left; }' +
-      '.th-donate-paypal img { vertical-align: middle; }' +
+      '#th-aw > div { display: block; margin: 5px 0; }' +
+      '#th-aw .card { padding: 5px; min-width: 100%; border: 1px solid #d7d8d9; border-top-left-radius: 30px; border-bottom-left-radius: 30px; }' +
+      '#th-aw .card .button { width: 123px; }' +
+      '#th-aw-update-button { margin: 5px; }' +
+      '#th-aw-settings-button { float: right; height: 32px; width: 32px; background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAJBklEQVRYR5VXe2xbZxU/175+v+JnHMexY+fJwqpKU5HYgCEeg05oG4KBVvFHK7G0K9vatUmbPra6SdemlddHnFJUsTGJvwBpMBVNCMEQBSRUZUBXytq84zjxM7Hjt69fnO8+4tskm9QrXd/X953zO+f7nd/5TMFDHj6fj5abTSVXu0vSmEpBajUJ2Ux6/9DLr157GJPUwwwmY0/4/W67xTzz/K4XpOK5kVAIPvzzh78+9GL/Dx/G5qcCOBsIPCOjpS/korE9GHVRMDp88cKXm5sdf+np6pRCHUACFNSoOmQyGbg/M3tvoH/v58QAfG+99bhGoxzKReLfRzvMRnBbAhgdv/KsQqn+ravdTc1OTyfW1jJfOXP06Cc+v99C05KzTmfbj93ONpyLCBAAIIBqpQa3/vURU2bKP1q6f/93169fL48GAkNyhfxMq8spDS+Fp1OLob6NIDYBwMifU6lV7337m9+givkCFGs1+Mffblbq9epHFCV9rKunl9YqleizzrknFngcIKVhORKuLy8tlaBWnzSaTI9+8YnHqTLamVsMQnAhuAnEAwDOXQt8TylX/eZb6DydTEEul8McS8BstUCuUIRWhx1WojFI4jdhIvHNHRRI8CUZq1BrIJ5IgF6L10iU/dqk10MwGiYgZmb+fbsvEAiUuFn8QdIrU8hj33n6aSqfSUM2lxeFRnBIoFar8lOEkMVDhHd4rSMYKXIDsyeuFL1WC3enpmBlJTE2uPelAw8AIA/j7777Dkaxu8PrpVhoaIjLL+e3Xq1BJptFwmWBwoESzL+ElkKFKUOlWgWVUgVarRrUKjU7ZeMS5fJ5mJyczKXSWfe548dXNgEgbs4Fxv7abLN9yWFvoYh/IUWpVAqWlpfBbreD2WQSRdbIAgERiUQgjRXR6fWAXK5Yp0cVs3H3f3fL+Xzxa76Bgb8LBjaR8Mj58zqtXLa6fdvnaVoqYxGsrq5CIrEKXm870Ei0xsLxZoRMsdYoyCGAhaUQdHo4EISosXiCBPCH468e2ClGvwnAG37/TqvFfMPjdqPQ1KCQL0IQRaarswN5wGsPVgDrCi1zK1/DKxFGsuaoDPg9m89BaGkZurs6cZwE6sifO5/cK8aZWdOlQ5cKn5oB//Wf3e/q7OqW1DkCTc3MgdPRAiqVkiMCuhLohjUPJYZhvxEucAvPxUSgRbBipFIpWCxmdmY4Fq+lM+mDA/37AusARi5fPCyXy/ZWa/Xmeq2u0mg0dLvLRZEoCoUCxBIr4Ha1oWF0jMSjanVgKmUIBherhXI5jgsyX6lU+oxGo9bhcGCsPA68QXswPTsL3R2drFgV8iWYDwWxmKoVrKoMYlygLr/z9qS3w9tls9owxRSsYY1jU2HjjEbjyGgV6PU6jmk8K+9PTVXypWL/8KHBXxB3/f39Mtcjj/zKZDJ+197czFGELBOCWAwtQ5uzlUsOnmaLlc2YVCaHj2//B6jRq2MTDrvjMY2aKx1WTYh7XIFFXPsWNCiTIRn5I4+lhJz474kDBx9df4k3u30+pdegT/X19irE7xNIYIvJzLsn9vHk5SG0vFyjzo5dueWw23doNNrGIL78w9Eo2G02tuaFok6mkhCLRn9+8rXDL4odkfszly/FOjweKy3DheFFANcc9Do9lxFyiCSUBfAmAsAoEQDJAK8/fMIyqIZazAxhu2CgUCzC/OLipO/Q4R4xgP0+n9ai1yX6urv5DHAOc2hDg9K87px9jT9oMxRGAMOXL92yWSw79Dod60ikfUDEg0iwUGzkmwRZPTM3V83nc0MjR4b8xFy/z6d26HS/t1nMXzUam1grQo8olkqgVHCYxLaJTJPGRfn8F4aqQO2HatWKziRqtYrGdishVSBTKtj1z2dzmIBG28ExMDU9XctkcxmpRBJBY25HS4sCK4GqVCuE8BxfyRQMoM72BArKZQYw7RWGYWpor4QluvCAEL3i8+n1SsU9T3t7i0IuRz5KwNnuhlAwCDXsA1ibGBk3pcmgB4+zDfcBVUggL+IrK1DG8lwPHcepNEpUQiWkk0n2NRKyHo0nxlbn5gbJfkFMifXlHBwZOWA1Gy82N9tJJUOT0QRqjQaWFxc5LgjHhobIGmMj5z4QAWpzI/iFICa3wmvCTDFXznRfPPnmomBmkxS/cuyYFVO83NPTQ5NuR4629nZgcC2j4TD7TLJAssE/NNLN0QukKNkuTzsk4jHIpjPsMNKgIrHoxNmh4zsaUWxuK3Bi9Nx7pqam53A309ATvHN7vWxU83OzmPYKRyk2WBI2uXLPaqwmNzahcHgJd8opHmMdarhU88EgU2DyX7j4xsjtLTNwdOT0Sxab7WpnRwe1ihLcoB033Iqa4Ma0prMZNrp8rsCCkSNfNFhFVouFbUvzKL8F3IZtPHRNBrjz8Z3MQize8ku/H7dbogwc9vkstFQSfeLJJyVki82Wkjg6NlhMPhLTaDYCAmU3IKRKmBIDa+k0ttwoFB6oGGGpuOwQezkElkyuXhkeOHLwAQDk4cJPx0+nUmvHnW1OxMJ3N0wtqVlsIEDTqHDiWRtTJKp0UhGshAtjEAPZ1OC5oGAq23F3zK7PJhIOjpz+iYyWXW51OGgiOiUkXzgSKaMoMTrc4DcZDFI5CotYVAQjWNyofFlYS60VCwxTxz2g0mq1YvFgk0Pnq8nkXCEW344b0vSWHBBeHh4+tU8hlQV0BgONu6F0qcTsDE9OTrT29u6Sy+gRg9HoRKJywfHlSIRqFhUSteNGuVz2L92790/Ptm3XMJV7NFotnVpbmytucL5lBgQQR4aH9+HOdtdaJvfstdHRpPD+tVMnnzLoDB9YrbbGXzNMAaobRMKRufOvv+4Vk2/g1KkfULRksFhNfD3ga0T+mRnYRF/Ri5ePHes16HW3WxwOuRA+ib5QyOPeMXlj9MTJZz5r/sZvGzlAoiIdm1wJ44STbAjISXs8Ht3ze3ZPtLlctEAwwu4VLNvQ/MKFt8fHySaFCAWRWvFVuCd/LkhzIFd+A8c5JWAEx+QqnBgpkH04aWkEhHz0auDmVlHe/OOfDn3w/vsTvHHyz4c4IWzP8vfkmZwEDAvg/5gaEzsDHsw6AAAAAElFTkSuQmCC"); }' +
+      '.th-aw-donate-buttons { margin: inherit; border-top-left-radius: 20px; border-bottom-left-radius: 20px; }' +
+      '.th-aw-donate-paypal { float: left; }' +
+      '.th-aw-donate-paypal img { vertical-align: middle; }' +
+      '.th-aw-get-in-touch li { display: inline-block; margin-right: 10px; }' +
+      '.th-aw-info li { margin: 2px 0; }' +
+
+      // 16px icons.
+      '.th-icon        { display: inline-block; width: 16px; height: 16px; vertical-align: text-bottom; }' +
+      '.th-icon-bug    { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADXklEQVQ4T02TYUwTZxjHn3vp3bXXu94hWNIW1EApU6ajshTciHFhumGMLlmyZNvnZXYmW/aFZPswY7JkGOMWE7fol31a4ofFZOyDzkkii5kEBKyEEsEKG2thBUvbu9L2rtf39lyRhUt+uefu3t//fe+e9xjYcQwEg7y1T/nCMulPd0anE9uP+vtfCbEM+wFdMy79PjOzudNhdlzYNTna+3KIE9jr1Kx2UAu8hJDndQTmTcP4+N6fc09wDEWsba8W0NW1T4nF/jKwdEa6O74WBGdUcLqAkDqoVk0olktQLBUvP5xKfINjyj09wbrx8YRqu3YA0/9G10W9bO71mLnVAwp8NlVsBL/fC7JHgkw2D+paGiJiRp9YZ65qnOJz8Y7S3dHHH9krsQNYWZabj7RKnw+9xkaVYITcHPmDbChtQKoOMEkFAloCTp88RTdm79HBscqP8XT5cir1fAndih0gIIHrx91fDQycfM97+ASXXYrTzMIk+Xd2ERqDXvCH36RSSztZnx4xbt2+9fPZkc0L6KSQoh3gQVp/OyPdePXEOyFOFAkR6oEofliciEFrTxhoNgm0mANDK9DJu78svD2svY/OIqIyx/oODhVK+utDe9OR8JE+ztLSKPuA8CIsJ4uwp0UAWi4AVdeBiI0QG7tvDC41TYhu5+zo/ZmovYJdSPvoGfl2Z3dXvZmKA3F5gEgNsFrwgE9UcfY80M0sOPz7IT71OHtsOD+AzlNkww6QkbZf35JvHu7u2MOsLRCg1VqbUzkXBJTSVsuxpZY3RKen5pdP38m/i3eeIXk7wC0IbOh82HPjVDjQLpdTxKqUa05ac0GTtBXAsE7I8QE6HFtd+vaJ/mEmo87i7U07gOvr7fxud0U9dLYFIvt9FmcVMjUpU3RCg7AVZrl3w1yyYnyfcjzQnJ7lxN/x6MrKVhdIm39X4NnKhvxDr3It5BN7mnjNwYMOmsGDyOlgAA9pXTLnVwpj58Zz0ebmhlwymVlFl9Z2IsIiyiHZcfCTTulKk4d7iScmcQDDUIZapSpL1/KVhWtz6qeP8uYMjs0h9tavydtnHgsZk/wXuuUvfS7HUWcdU1+1LH29VJ08H8sNqhX454Ws22+1M2C75rBwI/bmkuzvg5iIhuSRwouZ//8b/wNDgFsg+yoSRgAAAABJRU5ErkJggg=="); }' +
+      '.th-icon-idea   { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACv0lEQVQ4T5WSXUiTURzGn/O++zB1HxTOqav8apZfjBgFflyotewmKBQhL7qxxFAIKiiSopI+vEkwpGTQTXpT0mWUmFRqorlEK/Nzqb3TbeKcujm3ve/bUVJc2kUHDgfO8z+////hPAQ7LNv9Q6fBkgtUOvJH7gEvNsZeH3r1dznZejFdo48jEvaGMru8ItxQDEYeCdG/DH6Rw8pIOzw9zU95/8rdvdUj3Ma7EMBkbcaTqKK68rD4LKozEIVVCnBB9DpBFjgE/AIcr++Z91/uPb8NMH7nwFmlsbhJfawSLKsCYcIhBJfABxwQvBzI/DgYhxVurwTu7uelSTdHm9cgmxMM30r8GHvuYY5cawDDRlJAGJ1gBbzfDt47CXH+B1j7JALxx2F7dqUj5fZEbgjgW3XCkq6sMlKmTAdhlRQgX7cgBJzgPT8hzn0HO2tFMO0Efpnrl9NqrIoQwMC1fQsxpSaVRK6AJEIPQtYAPgircxCXp6kFK90cVvU5mGl64858MKUOAViuxrVpC435TMQEpLIkCqAWRB7wuUCW7CBuJwJ7whEU0zH7tq/1cC1nCgF0X9IWRcRoXmiyA2A8LrDBMICngKAPxO+HIGMQ1Gjh6JTCO+s8c/TRzHomQr6xqyq6fndGdKU6eQbSOc+mKEgJgqpwLIzFYH7Q/jir3l61Yw7aL0ZFSlhSG21QV6h0Ntqd5mCthVQGj1MHW5erOSiI5XkNzuUdAWuX78tUCRKVYkKTuYvmYHG9jmEj4Pzqx6rXk5vX4OrYmt4QCxtCXV2dmKhPRZbRCOvoELr6+jE48AVms3lb/T8BBfkF0GgUmJ1zo/NDByyW/wTkZOfiYKoew6Nj+NzxCb39lp0naG1tVfE8n0IIMdCdQm0k63S6Uy0vW9DW9g4+nxcnCwsXi0tKlBzHNVJ9UBTFKXpOmUym/t+tniogNDUKLAAAAABJRU5ErkJggg=="); }' +
+      '.th-icon-heart  { margin-right: 5px; background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACrUlEQVQ4T31T3UsUURQ/987dnR33Y9x1LT92TQSL1upFKQxLrIU1QpKioggKFKG3/o1eo6dQiHrrQUppQVAqoowFMwtiSXzR3dZsPxx3nZ11Zu7tztj6QdKBC+fj/n73d87hIuD2dVjuFIANc/e6FTOAWcrY2Kmx4ku7PuQdxAgNcbcLE6ebmltJxNBox6jyBM3f87U7JNfnw903RU/zMQcwBlph1cx/m65sppOPeSh4w5H7/hMXRFGux1gQkK6WaPrts3Ill7qFvtyVHx46M/BAdnucZn4FgJqAPUFA9W2wOj9dZoxCU2dMomtLQEtZXjcA+xqgIspG6s3zOJq740u29V47CqkFZKz/4hcoILEGhEAYWF0LtVqA3DKmnJxVVLtBweMH0toJix9eF1Hiti/b3nWuzlxeAF21LmwbctZwJQHbp6U8sK3dGhFFIKEOWFxI5NCnG77Z1uMdp9HvJVzZrOwQAOIuJtsxl21Ntmqi2wWG/4i58iM5g94PyiPBUPOjAFJENa+ASffc3MXseIKAoSZQC1ndzWf9cxi9ABAar/gLjaE6SdRyRN0oW2M40DAGcPskKItBPZNae3p+QhmxhML05do+gvGrpga3JG4ppLiu8W3uV4IQAq+fgx2yvpopaqZuRi9ObSRsApskKkeRQxhvapQkl64QJbdLgjACOeCCMvHrmUxJY7oRi84UZ+1h79Ua7/P0Cg7nZMgiMQpkPavZ5dqgBQ7o6fSmRpkRu/QX/A+BlZjgJAQck+FmSZLMgr0GlYNTKVUzqREbeLf9ctX2KagmJ3u8PQiTeLjF47JyK8tctsHBH/eDD1RQJRk/6+0mmExZscFfvnoAeIcgHo9HBEGI8EnbhxdO8hMB/g9sQ3x/AN/5ZhK8PmeaZqK/vz/xXwV7+/yf/wc6MhxIaZWcBAAAAABJRU5ErkJggg=="); }' +
+      '.th-icon-heartp { margin-right: 5px; background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC0klEQVQ4T5VTXUiTURh+zr5vP7rNDV2KTl1Oc6YY9IOQqIVZLAjBKAUvBOmmQBCli+gmKKgMsqTAq7ow8mJEhMHM0goTMkkwIRn+DqeRuuXPdH/fX+f7NMG0iw4czvue532e94dzCP5ztboQ11yN8B8akY3W/oQialyRCKlVAAkD1G9vKlt9IbsP+k0XJIoTkCKGURt4gRsDxPbmsrXHpOW90aHV6D15GRWwmLIVdjC0CO/CIAJrs20EEpOUkNVgSymCIc4CFWER5YIYnemicUvnyb2+pIeOzJONZkMqwpyf0kVoGCPitYnwzH6AJEk4mHkKoVgAMSFIfRFa1gyBFzAy3fWO3O1NnjvmqLKux+ZpEBWQBDAqLeLV+6BVG5WOIjRjmFuCIEblAqHTmGGOy8bw+CuQ2z1p0SOOM5qV8DRCkTWlBYBA5DV4+TSgCNRctmyStzCdVg+zzo6Rib4YueVOHy2wHy8M8z+xHqIlQlBIXAzofh5S7Mp6/RZZlmZg1BuhJhZ4vF8HyI3XtgarZf8jk0mLwIofdMJ407lJ/HudrY0Hy6phMSfDv7yOBf9cPbnoAlOgzeHtGbl03kEEfgXR6wruKVBRY4QlMQFiLB7TvolnN6um6pR3cN114DTLMm/tmTZIqiAW/RuIRngMdkcUoZLKODAMg5RkA0TOgBmfFzwvFN+pnvysCMjrmsvhZAjbbbdlgLCr8M1u4EvPhoIVn9MjLVUPiUvA1KwPgsSXtlSPD8jYtoDsXO0sKFermL6cLCttZxlzc5sVpKfrAN6MSe88JFEsban9rpB3CSgiHYfKVayqL9dupZWsK0Eip8fEzA/6eKTS+3Xftsl7CsiXTR2HTzCEfMzLsSoCnkmaWRJ2kf8pIAONT46WMGrySbYFTiptuzS8I/OOFtxudz6dcj4hRNkULKQ7X/4Xm1lU8jFG/8UQxYcFQRhyOp1D8uVvoY8fXsjKUkIAAAAASUVORK5CYII="); }' +
+      '.th-icon-help   { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACtklEQVQ4T6WTTUhUURTH//dd33uOM8/GQafRZhaSNTmmLWqRIEI7i5blIgqiyBoNkgSjohiK6DuMaoYEKQg3btqYLV0UUUILMy2pheH356i9+XjvzZvbnTcqfiw7cLlwDud3/ufccwn+08jm/FDXoJQvyA0gOAaGagJCGWEfwcjb5XQyEqqv0NfnbAA86vrdQKnwsqBQgV2xQZRlEEKgJ5KIqwkszP1F2mSNLfU7I6uQNcCDrl9BWRbDxT439JQA3WDg2VwEvxiDJBJIOWlMjc4gqRmNrfW7LIgFCIUGpbyArPlKi7EcI0hz3353FB6HaRVaSAgYnFegGiKUPIbxkUnEZjQl1FShWoC7ncMXXW7nM4gKNMNEymQ47NfwZVTCPAceDRjQdR29Iw7IIgVJqZidWWy9fmL3Qwtwu3P4Q7HXU6PySinTBFe8wfZ5uSKfiVefKXKoAMVOMPFnYuDGSX9VtoU3PzWP1yepMd2qvtmO7GUQBAHd3xgoJXDkiZgeH9NDp/bIFuDm6x9aUYmXA7QN1SXKUFumw+20obs/jeWkNVcOkDE7OabfOl2eBVzrGPpUuN1THU/y6iw7uIwdLDVQ4pLwrp9BS604iQC7jWJuemrgzpnybAtX2ocubXPltzFBQUpPrAFq/YRLpugdWs0GqGgDZSoWo4tX75+ruGcBjvNnLN1BtIJCDwy+A6Ye3zKHjEPgybLIEJ2fRtSMOdvPH1haW6TLkYGgKIphh7OIz4FyJUnUlBlQcoH330VeORdUMKEuzcEw9ObHFyqfZqAbVrn5+UCQUCFsdygQJTuP0qwSPhdDjyEeU5FOp1raGquerErc8pkaX/Q6KHMF+R84ywn+FcIwY6zDJAuRcNMhdX1/FqCnpyfAhxXgSdbhrkp+Mvd6G+KQPh7/appmX11dXV8m+A+i8hIg7mH0KgAAAABJRU5ErkJggg=="); }' +
+
+      '.th-icon-manual { margin-right: 10px; float: left; display: inline-block; width: 32px; height: 32px; vertical-align: text-bottom; background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE/klEQVRYR8WVW0wcVRjH/3vjtjt7mdlFSmkLLtJYWKTF2rpgwXJRY6oxaLVYbR80KYmJocYaTRNjo1Fqi4t9wAcSo9b65qu+GDVqSKppK1qUgLSlQOkChYVlgb36nZm9zHLbYW3sSXYzmXPmfL/z//7fd1S4w0PF4peWluYZzcZXBYvwIC8IhmP1lsrbwcWXVCF/1zNijNWGOOlwOHo4jnPwvGWM54W+prs9NbcDwG4vQtkLrtQA5eXlEYNB72lrO2myWq0wGAziLzs7G5mZmWmzXD7bqhxAb9APdLg6ikmJOwPATtzcfABVVdWIqfC/KsAAeIGHhbeG3qg3a9LWfcmH6/AAB0GwwGTNxZlDpUAk8t8YVCoMDw3B8WKHMhNyHClg4UUA18ESREKhOMAyFPHF2oBqjQajozdQfuhjZQBiCngBZpsN7c/aEQoGVwwixV4jOM2xWa1WhzG3G/cdPqMQgNwv8FIKTu8vigIkshBZISh7FwqFxUXhpPkINNoM3CSAnS93KgPgDBwsZEKzYMOp/YUIBgJJHpDOTP/Rw7N4/kAQs75FzC0sIhAMkzAJZTRaLSYmp9B0/JwygFgVmEmBD5u2ICACyKSOP0oPwXAEUzM+3LDWIrPImRQ8Ri6mQpc1m+xmVVfdvaajsXcindQJmQckE55s2oSA3y/7LnbsBFKQpB8Z98C/5wQcdtuSFKxcQN1/TkCrUQdzcnRdjaXmFrYqAUBVIJAJTZSCD54qIIBFSXSK/culgWWGDBDA+PQcHEc+Q0lRLvyh1GXb238LOVlaqNTwUcZe2VchfBoH4KKNyCjk4v0n8+FfXJA5UHqU/C2NQDCEoTEPwvXvoXCzDQu0Y6oxeGVaXJKVoYn4g+GwPkcn1ShLAbsDxD5AZfjuvjz4FyQAFrK7Z3DZ3kEK6CYFyo58jmJSYD0Asc1y9LrZ5BSIALk48XguFufn40ET5pYpECAF3B5E6ttgVwgg5pwiqukvW6tC//UZGQCVIbsLTFYb3nmMJPX5kk8dbTDne6+J75kJx6d8pMAXuMd+l6jAd2c7U2VBnK872IIsrRr/XPckAFgfYFVgJIC3H+ExLweQ1XdMA1b3w+5pRBpPoaQ4T1EK5HQMYODatFwB6TZkfeB4gwU+rzexfiUASsHwxAzQeBpbSzaIAN8rVODhqAIDV1YBeKvOhLkYwJIWHFeAAEYIINLYjm1b89NSoG9wSp4CA7Vi6gOUgjdrDfAygFUuHQbBynBknJpc40co27YR86TAD18q80Dt8y1kQjX+6r+V7AELecBMAMdq9PDO0uZrAYidkKXABUdZgQiwnsEAevsmk6tAIA8YqRO+vicb3hnanPWBVSBYJxydmEW4oQMV5ZswHwjjx3PKFKhpJgV0avT8PSFTgDUidh1TJ3ytOhOzHglgtREDCBHA9orNIsB6BgP4vXc82QOsCoxUBUedDMCjAMCLUIMLO7ZvEQF+UqjAQ1EFLl12xwEuUh+oiPWBVmdGSgDxNpwkgDoXKisL01Lgwh834wBPGDjua8HCa4x0F7Tu1mEmhQIxgOBeF3beXwQfKfDzV8o8UH2gBTmUgt96xiQANpxO515S4DCXt+Hp5wrc2anyyQDGqBVrHu3E7gckgPUMBvDrRRmA7ONcejbQT69kw0++vdq9a8dGfToA5y+MJhRQEmylNZ3fXG0nGV9K53tqaF3/Aot1QCKE5DaSAAAAAElFTkSuQmCC"); }' +
+
+      // Heartbeat.
+      '.th-about-love:hover .th-icon-heart { -webkit-animation: heartbeat 1s linear infinite; -moz-animation: heartbeat 1s linear infinite; animation: heartbeat 1s linear infinite; }' +
+      '@keyframes "heartbeat" { 0% { -webkit-transform: scale(1); -moz-transform: scale(1); -o-transform: scale(1); transform: scale(1); } 80% { -webkit-transform: scale(0.9); -moz-transform: scale(0.9); -o-transform: scale(0.9); transform: scale(0.9); } 100% { -webkit-transform: scale(1); -moz-transform: scale(1); -o-transform: scale(1); transform: scale(1); } }' +
+      '@-webkit-keyframes "heartbeat" { 0% { -webkit-transform: scale(1); transform: scale(1); } 80% { -webkit-transform: scale(0.9); transform: scale(0.9); } 100% { -webkit-transform: scale(1); transform: scale(1); } }' +
+      '@-moz-keyframes "heartbeat" { 0% { -moz-transform: scale(1); transform: scale(1); } 80% { -moz-transform: scale(0.9); transform: scale(0.9); } 100% { -moz-transform: scale(1); transform: scale(1); } }' +
+      '@-o-keyframes "heartbeat" { 0% { -o-transform: scale(1); transform: scale(1); } 80% { -o-transform: scale(0.9); transform: scale(0.9); } 100% { -o-transform: scale(1); transform: scale(1); } }' +
 
       // Settings window.
-      '#th-settings-window label, #th-settings-window input { display: inline-block; cursor: pointer; }' +
-      '#th-settings-window form > div { margin: 5px 0; }' +
-      '#th-settings-back-button { float: left !important; }' +
-      '.th-settings-help { background-color: #ccc; padding: 2px; margin-left: 5px; border-radius: 10px; font-weight: bold; cursor: help; }' +
+      '#th-sw label, #th-sw input, #th-sw select { display: inline-block; cursor: pointer; }' +
+      '#th-sw form > div { margin: 5px 0; }' +
+      '#th-sw-back-button { float: left !important; }' +
+      '.th-sw-help { margin-left: 4px; cursor: help; }' +
 
       // Show custom number of notifications.
       '#new_notifications_wrapper { position: relative; }' +
-      '#th-nc-div { position: absolute; top: 0; right: 15px; }' +
-      '#th-nc-div select { cursor: pointer; }'
+      '#th-nr-div { position: absolute; top: 0; right: 15px; }' +
+      '#th-nr-div select { cursor: pointer; margin: 0 5px; }' +
+      '#th-nr-nk-select, #th-nr-nu-select { width: 80px; }' +
+      '#th-nr-reload { display: inline-block; height: 16px; width: 16px; vertical-align: text-bottom; cursor: pointer; margin: 0 5px; background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC2klEQVQ4T32SS08TURiG37l0ept2aGnxAqIoprXVyNqNW1YaF3YhwcR4SVRYiFFJRDHES8UYjBeMMUYj0RhIZCXxFxhDwBAUsKlKJAJFaellpu1MZ+Y4rbEBL5zdOfnOc773Ow+FVVa4/7PA0aQ7rcunL4WC4r9KqdUAV/ujXgfHflcU9ZMKvelcyDf8Z/1fgOv9H30U2HYKZI/JxLq9HgfsVhbRL4uaDj08grHOgVBI+w1aAbj+ItICir7l2+JhPG4ekgLE0xoYGqiwU4gvJjEzlxouKPrBC83+SBFSBlx9Fj2+scbZ6650QNEZSHkdOYUgJ5PSY7yVRoWNILWUwdx8avDd4Nj+gYGQVgJ09n2oNzGmiYC/mhNlBpmsiqwoQpVlsBY7GLMVRM1Dl7OQ87nOjgO+rhURuvoid2pr3C0aa0daVCDGFzRdJ2GKkFeM2fKG4SxQsqmETtB0qdn/evkgf3XwNBLdULuuPpOnkBMzyGfTHV0H/VfOPRgRbDYhSXRtVFWw//JR//Q/f+HikynZW13DFTNL8RiyWmHdjUPBWBFg5vibmaVEa0/brtx/Peh4PCm71lRzqg5IiQXkMgbgZDC2miMrZtD+aGrcWendQTMmQBGRTKQ6wkcDV5YD2h9OdlM0daZ8RjB97ci2zaUZnH04cdnGO8+bbQ44LcDXmTlDFBJGQe3TaJYxPDi8dZOrzV/vAUVRiE4nMPVp8W73sWBrCXDm3sRawpKow+XlBacVa12MMUgR3+bTpQu16wXwDh5JSUdGzGNmJpbT9MLWnuMNs2WRTt1/v48zW17abDw8lXZUVbAQeAbE8CgpaviRVBFfkpCTJMOFfFPPie3PV5hY3LT2ju9mQT024tQ5eBt43lyKnJFkiGLWkCs9awhy5PbJnWUXyh0MDQ0FGIYJFAjdEFkU9iZldkta5qxFgGAuoMouo65C+miitbdGrFFN04YbGxuHfwJN4z4gjV4RIAAAAABJRU5ErkJggg=="); }' +
+
+      // Notifications Reloaded.
+      '#new_notifications_popup .notifications, #new_notifications_popup .messages, #new_notifications_popup .friend_requests { max-height: 160px; width: 100%; overflow: scroll; }' +
+      '#new_notifications_popup .notifications .notifications_item, #new_notifications_popup .messages .notifications_item { width: 100%; }'
     ).appendTo( 'head' );
   }
 
@@ -1767,50 +1960,60 @@ jQuery( document ).ready(function( $ ) {
 
     // About window.
     var $aboutWindow = $( '<div/>', {
-      'id' : 'th-about-window',
+      'id' : 'th-aw',
       html :
         '<h1>About Tsu Helper</h1>' +
-        '<div>' +
-          'Version <strong>' + Updater.localVersion + '</strong> (<a href="https://j.mp/tsu-helper-changelog" target="_blank">changelog</a>)<br />' +
-          '&copy;2014-2015 Armando L&uuml;scher (<a href="https://tsu.co/noplanman">@noplanman</a>)<br />' +
-          'Disclaimer: Tsu Helper is in no way affiliated with Tsu LLC.<br />Use it at your own risk.' +
+        '<div class="th-about-love"><i class="th-icon th-icon-heart"></i>Made with love and care.</div>' +
+        '<div><ul class="th-aw-info">' +
+          '<li>Version <strong>' + Updater.localVersion + '</strong> (<a href="https://j.mp/tsu-helper-changelog" target="_blank">changelog</a>)<br />' +
+          '<li>&copy;2014-2015 Armando L&uuml;scher (<a href="/noplanman">@noplanman</a>)<br />' +
+          '<li><em>Disclaimer</em>: Tsu Helper is in no way affiliated with Tsu LLC.' +
+          '<li>Use it at your own risk.' +
+        '</ul></div>' +
+        '<div><i class="th-icon-manual"></i>For more details about this script, to see how it works,<br />and an overview of all the features and how to use them,<br /> take a look at the extensive manual <a href="https://j.mp/tsu-helper-readme" target="_blank">here</a>.</div>' +
+        '<div><ul class="th-aw-get-in-touch">' +
+          '<li>Found a <i class="th-icon th-icon-bug" title="Bug"></i>' +
+          '<li>Have a great <i class="th-icon th-icon-idea" title="Idea"></i>' +
+          '<li>Just want to say hi?' +
+          '<li><a class="message_pop_up fancybox.ajax" href="/messages/new/noplanman">Let me know!</a>' +
+        '</ul></div>' +
+        '<div>If you like this script and would like to support my work, please consider a small donation. It is very much appreciated <i class="th-icon th-icon-heartp"></i>' +
+          '<div class="th-buttons-div th-aw-donate-buttons">' +
+            '<a class="th-aw-donate-paypal" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=CRQ829DME6CNW" target="_blank"><img alt="Donate via PayPal" title="Donate via PayPal" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" /></a>' +
+            '<span>&laquo; PayPal <i> - or - </i> Tsu &raquo;</span>' +
+            '<a class="th-aw-donate-tsu button message_pop_up fancybox.ajax donation" href="/users/profiles/donation/104738" title="Donate via Tsu">Donate</a>' +
+          '</div>' +
         '</div>' +
-        '<br />' +
-        '<div>For more details about this script and an overview of all the features simply <a href="https://j.mp/tsu-helper-readme" target="_blank">click here</a>.</div>' +
-        '<br />' +
-        '<div>If you like this script and would like to support my work, please consider a small donation. It is very much appreciated =)</div>' +
-        '<div class="th-buttons-div th-donate-buttons">' +
-          '<a class="th-donate-paypal" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=CRQ829DME6CNW" target="_blank"><img alt="Donate via PayPal" title="Donate via PayPal" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" /></a>' +
-          '<span>&laquo; PayPal <i> - or - </i> Tsu &raquo;</span>' +
-          '<a class="th-donate-tsu button message_pop_up fancybox.ajax donation" href="/users/profiles/donation/104738" title="Donate via Tsu">Donate</a>' +
-        '</div>' +
-        '<br />' +
-        '<div>Follow me and stay up to date!</div>'
+        '<div id="th-about-followme">Follow me and stay up to date!</div>' +
+        '<div>Iconset <a href="https://www.iconfinder.com/iconsets/essen" target="_blank">Essen</a> by <a href="http://pc.de" target="_blank">PC.de</a></div>'
+    });
+
+    // Get my card and add it to the about window.
+    $.get( '/users/profile_summary/104738', function( card ) {
+      $aboutWindow.find( '#th-about-followme' ).after( card );
     });
 
     // Settings window.
     var $settingsWindow = $( '<div/>', {
-      'id' : 'th-settings-window',
+      'id' : 'th-sw',
       html : '<h1>Tsu Helper Settings</h1>'
     });
 
     // Settings which are only a checkbox.
-    var checkboxes = [
+    var checkboxSettings = '';
+    [
       { name : 'hideAds',      txt : 'Hide Ads',                       help : 'Show or Hide all the Ads.' },
       { name : 'quickMention', txt : 'Enable Quick Mentions',          help : 'Add Quick Mention links to comments and replies.' },
       { name : 'emphasizeNRP', txt : 'Emphasize Nested Replies',       help : 'Emphasize the parent of nested comment replies, to make them more visible.' },
       { name : 'checkSocial',  txt : 'Check Social Networks',          help : 'Check if your new post is being shared to your connected Social Network accounts.' },
       { name : 'checkMaxHM',   txt : 'Check Max. Hashtags & Mentions', help : 'Check if the maximum number of Hashtags & Mentions has been reached before posting.' }
-    ];
-    var checkboxSettings = '';
-    for ( var i = 0; i < checkboxes.length; i++ ) {
-      var cb = checkboxes[ i ];
-      checkboxSettings += '<div><label><input type="checkbox" name="' + cb.name + '"' + checked( settings[ cb.name ] ) + ' />' + cb.txt + '</label><span class="th-settings-help" title="' + cb.help + '">?</span></div>';
-    }
+    ].forEach(function( item ) {
+      checkboxSettings += '<div><label><input type="checkbox" name="' + item.name + '"' + checked( settings[ item.name ] ) + ' />' + item.txt + '</label><i class="th-icon th-icon-help th-sw-help" title="' + item.help + '"></i></div>';
+    });
 
     // The debug level dropdown.
     var debugLevelSettings = ( publicDebug || 104738 === window.current_user.id ) ?
-      '<div><label>Debug level:' +
+      '<div><label>Debug level: ' +
         '<select name="debugLevel">' +
           '<option value="disabled"' + selected( 'disabled', settings.debugLevel ) + '>Disabled</option>' +
           '<option value="l"' + selected( 'l', settings.debugLevel ) + '>Log</option>' +
@@ -1820,18 +2023,31 @@ jQuery( document ).ready(function( $ ) {
         '</select>' +
       '</label></div>' : '';
 
+    // List the available count options.
+    var selectNotifReloaded = '<select name="notifReloaded"><option value="0">Disabled</option>';
+    [ 5, 10, 15, 20, 25, 30 ].forEach(function( val ) {
+      selectNotifReloaded += '<option value="' + val + '">' + val + '</option>';
+    });
+    selectNotifReloaded += '</select>';
+
     var $settingsForm = $( '<form/>', {
       'id' : 'th-settings-form',
       html :
         checkboxSettings +=
 
+        // FFC.
         '<div><label>Show Friends and Followers on ' +
           '<select name="showFFC">' +
             '<option value="disabled"' + selected( 'disabled', settings.showFFC ) + '>No Links (disabled)</option>' +
             '<option value="all"' + selected( 'all', settings.showFFC ) + '>All Links</option>' +
             '<option value="hovercard"' + selected( 'hovercard', settings.showFFC ) + '>Hover Cards Only</option>' +
           '</select>' +
-        '</label><span class="th-settings-help" title="Where to display Friends and Followers counts.">?</span></div>'
+        '</label><i class="th-icon th-icon-help th-sw-help" title="Where to display Friends and Followers counts."></i></div>' +
+
+        // Notifications Reloaded
+        '<div><label>Notifications Reloaded count: ' +
+          selectNotifReloaded +
+        '</label><i class="th-icon th-icon-help th-sw-help" title="How many notifications to show in the notification popup."></i></div>'
 
         + debugLevelSettings
     })
@@ -1839,7 +2055,7 @@ jQuery( document ).ready(function( $ ) {
 
     // Defaults button on Settings window.
     var $defaultsButton = $( '<a/>', {
-      'id'  : 'th-settings-defaults-button',
+      'id'  : 'th-sw-defaults-button',
       class : 'button red',
       title : 'Reset to default values',
       html  : 'Defaults',
@@ -1854,7 +2070,7 @@ jQuery( document ).ready(function( $ ) {
 
     // Save button on Settings window.
     var $saveButton = $( '<a/>', {
-      'id'  : 'th-settings-save-button',
+      'id'  : 'th-sw-save-button',
       class : 'button',
       title : 'Save Settings',
       html  : 'Save',
@@ -1869,7 +2085,7 @@ jQuery( document ).ready(function( $ ) {
 
     // Back button on Settings window.
     var $backButton = $( '<a/>', {
-      'id'  : 'th-settings-back-button',
+      'id'  : 'th-sw-back-button',
       class : 'button grey',
       title : 'Go Back without saving',
       html  : '&laquo; Back',
@@ -1892,8 +2108,7 @@ jQuery( document ).ready(function( $ ) {
 
     // Settings button on About window.
     $( '<a/>', {
-      'id'  : 'th-about-window-settings-button',
-      class : 'button th-settings',
+      'id'  : 'th-aw-settings-button',
       title : 'Change Settings',
       html  : '',
       click : function() {
@@ -1927,6 +2142,7 @@ jQuery( document ).ready(function( $ ) {
     // Check if there is a newer version available.
     if ( Updater.hasUpdate() ) {
       $( '<a/>', {
+        'id'  : 'th-aw-update-button',
         class : 'button th-update',
         title : 'Update Tsu Helper to the newest version (' + Updater.remoteVersion + ')',
         href  : Updater.scriptURL,
@@ -1964,10 +2180,6 @@ jQuery( document ).ready(function( $ ) {
     // Add "About" menu item.
     $( '<li/>', { 'id' : 'th-menuitem-about', html : $aboutWindowLink } )
     .appendTo( '#navBarHead .sub_nav' );
-
-    // Get my card and add it to the about window.
-    $.get( 'https://www.tsu.co/users/profile_summary/104738', function( card ) {
-      $aboutWindow.append( card );
-    });
   }
+
 });

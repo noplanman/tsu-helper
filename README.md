@@ -1,7 +1,7 @@
 #Tsu Helper
 
 - Author: [Armando Lüscher](https://www.tsu.co/noplanman)
-- Version: 2.1 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+- Version: 2.2 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 - Short-Link for sharing: https://j.mp/tsu-helper
 - Disclaimer: Tsu Helper script is in no way affiliated with Tsu LLC. Use it at your [own risk](#known-issues).
 
@@ -34,6 +34,7 @@ Settings
   - No Links (disabled): Disable this feature.
   - All Links: Load Friends and Followers counts on all possible links.
   - Hover Cards Only: Only load the Friends and Followers counts when hovering over the username of a post or comment. (This option still displays counts on all other pages!)
+- [Notifications Reloaded](#notifications-reloaded) count: Choose how many notifications should be shown in the Notifications Popup.
 
 Buttons
 - Save: Save the settings and reload the page for them to take effect.
@@ -136,11 +137,16 @@ Opening single posts is easier than ever!
 - Just double click the header of any post or share to open the single post itself.
 - To open the single post in a new window or tab, hold down the "Shift" key while double clicking.
 
-###Notification Count
-Choose how many notifications you would like to display on the notifications page.
-NOTE: The limit seems to be around 370, but I've added up to 500 just in case the limitation changes at some point.
+###Notifications Reloaded
+Easily access up to 30 most recent Notifications, Messages and Friend Requests. The number can be changed in the [Settings](#settings).
+
+![Notification Popup][notification-popup]
+
+Choose how many notifications you would like to display on the notifications page and filter them by kind of notification and user.
 
 ![Notification Count][notification-count]
+
+NOTE: The limit seems to be around 370, but I've added up to 500 just in case the limitation changes at some point.
 
 ###Stay up to date!
 Whenever a new update is available, you will be notified visually. The username link on the top right will get an orange background and the [About window](#about) will get a new button, making your update just 1 click away.
@@ -201,3 +207,4 @@ Use them at your own risk!
 [ffc-hover-card]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-hover-card.png "FFC Hover Card"
 [ffc-discover]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-discover.png "FFC Discover"
 [notification-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-count.png "Notification Count"
+[notification-popup]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-popup.png "Notification Popup"

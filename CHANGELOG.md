@@ -1,5 +1,11 @@
 #Change Log
 
+##Version 2.2
+
+- Notifications Reloaded introduced, adding a filter for Notifications and displaying up to 30 Notifications, Messages and Friend Requests in the Notifications Popup.
+- Delays added for FFM and FFC to help prevent "503 Service Unavailable".
+- Various optimisations and bug fixes.
+
 ##Version 2.1
 
 - Choose how many Notifications to show on the Notifications page.
