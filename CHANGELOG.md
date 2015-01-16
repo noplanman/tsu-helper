@@ -1,5 +1,10 @@
 #Change Log
 
+##Version 2.3
+
+- Added new notifications to filter (Donations and new users in Network).
+- Upgraded UX (user experience) of the filters.
+
 ##Version 2.2
 
 - Notifications Reloaded introduced, adding a filter for Notifications and displaying up to 30 Notifications, Messages and Friend Requests in the Notifications Popup.

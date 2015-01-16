@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     2.2
+// @version     2.3
 // @author      Armando Lüscher
 // @grant       none
 // ==/UserScript==
@@ -26,7 +26,7 @@
  */
 
 // Make sure we have jQuery loaded.
-if ( ! ( 'jQuery' in window ) ) { return; }
+if ( ! ( 'jQuery' in window ) ) { return false; }
 
 // Run everything as soon as the DOM is set up.
 jQuery( document ).ready(function( $ ) {
@@ -178,7 +178,7 @@ jQuery( document ).ready(function( $ ) {
    */
   var Updater = {
     // The local version.
-    localVersion : 2.2,
+    localVersion : 2.3,
 
     // The remote version (loaded in the "check" method).
     remoteVersion : null,
@@ -229,7 +229,22 @@ jQuery( document ).ready(function( $ ) {
     maxMentions : 10,
 
     // Cards per page request of Friends, Followers and Following tabs.
-    ffmCardsPerPage : 12
+    ffmCardsPerPage : 12,
+
+    // Texts for all possible notifications.
+    kindsTexts : {
+      friend_request_accepted              : 'Friend Requests accepted',
+      new_comment_on_post                  : 'Comments on your Posts',
+      new_comment_on_post_you_commented_on : 'Comments on other Posts',
+      new_follower                         : 'New Followers',
+      new_like_on_post                     : 'Likes on your Posts',
+      new_like_on_comment                  : 'Likes on your Comments',
+      new_post_on_your_wall                : 'Posts on your Wall',
+      someone_mentioned_you_in_a_post      : 'Mentioned in a Post or Comment',
+      someone_shared_your_post             : 'Shares of your Posts',
+      donation_received                    : 'Donations received',
+      someone_joined_your_network          : 'Users who joined your Network'
+    }
   };
 
 
@@ -807,7 +822,7 @@ jQuery( document ).ready(function( $ ) {
             QM.addTextToTextArea( $commentInput, atUsername );
           }
         })
-        .hide() // Start hidden, as it will appear with the mouse over event.
+        .hide(); // Start hidden, as it will appear with the mouse over event.
 
         // Show / hide link on hover / blur.
         $commentArea.hover(
@@ -903,7 +918,7 @@ jQuery( document ).ready(function( $ ) {
               // Run all functions responding to DOM updates.
               // When loading a card, only if it's not a hover card, as those get loaded above.
               if ( mutationNodesHaveClass( mutations[ m ], 'post comment message_content_feed message_box tree_bar tree_child_wrapper' )
-                || ( mutationNodesHaveClass( mutations[ m ], 'card' ) && $hoverCard.length == 0 ) ) {
+                || ( mutationNodesHaveClass( mutations[ m ], 'card' ) && $hoverCard.length === 0 ) ) {
                 FFC.loadAll();
                 QM.load();
                 emphasizeNestedRepliesParents();
@@ -1577,9 +1592,8 @@ jQuery( document ).ready(function( $ ) {
   // Add Notifications Reloaded to the notifications page.
   if ( Page.is( 'notifications' ) ) {
 
-    var $ajaxNCRequest = null;
+    var $ajaxNRRequest = null;
     var $notificationsList = $( '#new_notifications_list' );
-
 
     // Add the empty filter message
     var $emptyFilterDiv = $( '<div>No notifications match the selected filter. Coose a different one.</div>' );
@@ -1596,7 +1610,6 @@ jQuery( document ).ready(function( $ ) {
       title : 'Filter by user'
     });
 
-
     // List the available count options.
     var selectCount = '';
     [ 30, 50, 100, 200, 300, 400, 500 ].forEach(function( val ) {
@@ -1605,32 +1618,119 @@ jQuery( document ).ready(function( $ ) {
 
     /**
      * Filter the current items according to the selected filters.
+     * @param {string} which Either "kind" or "user".
      */
-    var filterNotifications = function() {
+    function filterNotifications( which ) {
       var $notificationItems = $notificationsList.find( '.notifications_item' ).show();
+      var kindVal = $kindSelect.val();
+      var userVal = $userSelect.val();
 
+      if ( undefined === which )
+        updateSelectFilters( $notificationItems );
+
+      // Filter kinds.
       if ( '' !== $kindSelect.val() ) {
-        $notificationItems.not( '[data-kind="' + $kindSelect.val() + '"]' ).hide();
+        $notificationItems.not( '[data-kind="' + kindVal + '"]' ).hide();
       }
 
+      // Filter users.
       if ( '' !== $userSelect.val() ) {
-        $notificationItems.not( '[data-user-id="' + $userSelect.val() + '"]' ).hide();
+        $notificationItems.not( '[data-user-id="' + userVal + '"]' ).hide();
       }
 
-      if ( $notificationItems.find( ':visible' ).length ) {
+      var $notificationItemsVisible = $notificationItems.filter( function() { return $( this ).find( '.new_notification:visible' ).length; } );
+
+      if ( $notificationItemsVisible.length ) {
         $emptyFilterDiv.hide();
       } else {
         $emptyFilterDiv.show();
       }
-    };
+
+      // The other select filter, not the current one.
+      var other = ( 'kind' === which ) ? 'user' : 'kind';
+
+      if ( '' === kindVal && '' === userVal ) {
+        updateSelectFilters( $notificationItems, other );
+      } else {
+        updateSelectFilters( $notificationItemsVisible, which );
+      }
+    }
+
+    /**
+     * Update the entries and count values of the filter select fields.
+     * @param  {jQuery} $notificationItems List of notification items to take into account.
+     * @param  {string} which              The filter that is being set ("kind" or "user").
+     */
+    function updateSelectFilters( $notificationItems, which ) {
+      // Remember the last selections.
+      var lastKindSelected = $kindSelect.val();
+      var lastUserSelected = $userSelect.val();
+
+      // The available items to populate the select fields.
+      var availableKinds = {};
+      var availableUsers = {};
+
+      $notificationItems.each(function() {
+        var $notificationItem = $( this );
+
+        // Remember all the available kinds and the number of occurrences.
+        if ( availableKinds.hasOwnProperty( $notificationItem.attr( 'data-kind' ) ) ) {
+          availableKinds[ $notificationItem.attr( 'data-kind' ) ]++;
+        } else {
+          availableKinds[ $notificationItem.attr( 'data-kind' ) ] = 1;
+        }
+
+        // Remember all the available users and the number of occurrences.
+        if ( availableUsers.hasOwnProperty( $notificationItem.attr( 'data-user-id' ) ) ) {
+          availableUsers[ $notificationItem.attr( 'data-user-id' ) ].count++;
+        } else {
+          availableUsers[ $notificationItem.attr( 'data-user-id' ) ] = {
+            username  : $notificationItem.attr( 'data-user-name' ),
+            count     : 1
+          };
+        }
+      });
+
+      // Update the kinds if the "User" filter has been changed.
+      if ( undefined === which || 'user' === which || '' === lastKindSelected ) {
+        // List the available kinds, adding the number of occurances.
+        $kindSelect.removeAttr( 'disabled' ).html( '<option value="">All Kinds</option>' );
+        for ( var key in availableKinds ) {
+          if ( TSUConst.kindsTexts.hasOwnProperty( key ) && availableKinds.hasOwnProperty( key ) ) {
+            $kindSelect.append( '<option value="' + key + '"' + selected( key, lastKindSelected ) + '>' + TSUConst.kindsTexts[ key ] + ' (' + availableKinds[ key ] + ')</option>' );
+          }
+        }
+      }
+
+      // Update the users if the "Kind" filter has been changed.
+      if ( undefined === which || 'kind' === which || '' === lastUserSelected ) {
+        // List the available users, adding the number of occurances.
+        $userSelect.removeAttr( 'disabled' ).html( '<option value="">All Users - (' + Object.keys( availableUsers ).length + ' Users)</option>' );
+
+        // Sort alphabetically.
+        var availableUsersSorted = [];
+
+        for ( var userID in availableUsers ) {
+          availableUsersSorted.push( [ userID, availableUsers[ userID ].username.toLowerCase() ] );
+        }
+        availableUsersSorted.sort( function( a, b ) { return ( a[1] > b[1] ) ? 1 : ( ( b[1] > a[1] ) ? -1 : 0 ); } );
+
+        availableUsersSorted.forEach(function( val ) {
+          var userID = val[0];
+          if ( availableUsers.hasOwnProperty( userID ) ) {
+            $userSelect.append( '<option value="' + userID + '"' + selected( userID, lastUserSelected ) + '>' + availableUsers[ userID ].username + ' (' + availableUsers[ userID ].count + ')</option>' );
+          }
+        });
+      }
+    }
 
     /**
      * Refresh the selected number of notifications.
      */
     var reloadNotifications = function() {
-      // If a request is already busy, cancel it and restart the new one.
-      if ( $ajaxNCRequest ) {
-        $ajaxNCRequest.abort();
+      // If a request is already busy, cancel it and start the new one.
+      if ( $ajaxNRRequest ) {
+        $ajaxNRRequest.abort();
       }
 
       doLog( 'Loading ' + $countSelect.val() + ' notifications.', 'i' );
@@ -1638,12 +1738,12 @@ jQuery( document ).ready(function( $ ) {
       // Show loader wheel.
       $notificationsList.html( '<img src="/assets/loader.gif" alt="Loading..." />' );
 
-      // Disable select inputs but remember the selections.
-      var lastKindSelected = $kindSelect.attr( 'disabled', 'disabled' ).val();
-      var lastUserSelected = $userSelect.attr( 'disabled', 'disabled' ).val();
+      // Disable select inputs.
+      $kindSelect.attr( 'disabled', 'disabled' );
+      $userSelect.attr( 'disabled', 'disabled' );
 
       // Request the selected amount of notifications.
-      $ajaxNCRequest = $.getJSON( '/notifications/request/?count=' + $countSelect.val(), function( data ) {
+      $ajaxNRRequest = $.getJSON( '/notifications/request/?count=' + $countSelect.val(), function( data ) {
 
         // Clear the loader wheel.
         $notificationsList.empty();
@@ -1661,81 +1761,26 @@ jQuery( document ).ready(function( $ ) {
           return;
         }
 
-        // Texts for all possible notifications.
-        var kindsTexts = {
-          friend_request_accepted              : 'Friend Requests accepted',
-          new_comment_on_post                  : 'Comments on your Posts',
-          new_comment_on_post_you_commented_on : 'Comments on other Posts',
-          new_follower                         : 'New Followers',
-          new_like_on_post                     : 'Likes on your Posts',
-          new_like_on_comment                  : 'Likes on your Comments',
-          new_post_on_your_wall                : 'Posts on your Wall',
-          someone_mentioned_you_in_a_post      : 'Mentioned in a Post or Comment',
-          someone_shared_your_post             : 'Shares of your Posts'
-        };
-
-        // The available items to populate the select fields.
-        var availableKinds = {};
-        var availableUsers = {};
-
         // Append the notifications to the list. Function used is the one used by Tsu.
         $( data.notifications ).each(function( i, item ) {
-
-          // Remember all the available kinds and the number of occurrences.
-          if ( availableKinds.hasOwnProperty( item.kind ) ) {
-            availableKinds[ item.kind ]++;
-          } else {
-            availableKinds[ item.kind ] = 1;
-          }
-
-          // Remember all the available users and the number of occurrences.
-          if ( availableUsers.hasOwnProperty( item.user.id ) ) {
-            availableUsers[ item.user.id ].count++;
-          } else {
-            availableUsers[ item.user.id ] = {
-              username  : item.user.first_name + ' ' + item.user.last_name,
-              count     : 1
-            };
-          }
-
-          var $notificationItem = $( window.notifications_fr._templates['new_comment_in_post'](
+          //var $notificationItem = $( window.notifications_fr._templates['new_comment_in_post'](
+          var $notificationItem = $( window.notifications_fr._templates.new_comment_in_post(
             item.url,
             item.user,
             item.message,
             item.created_at_int
           ))
-          .attr( { 'data-user-id' : item.user.id, 'data-kind' : item.kind } );
+          .attr({
+            'data-kind'      : item.kind,
+            'data-user-id'   : item.user.id,
+            'data-user-name' : item.user.first_name + ' ' + item.user.last_name
+          });
 
           $notificationsList.append( $notificationItem );
         });
 
         // Add the empty filter message.
         $notificationsList.append( $emptyFilterDiv );
-
-        // List the available kinds, adding the number of occurances.
-        $kindSelect.removeAttr( 'disabled' ).html( '<option value="">All Kinds</option>' );
-        for ( var key in availableKinds ) {
-          if ( kindsTexts.hasOwnProperty( key ) && availableKinds.hasOwnProperty( key ) ) {
-            $kindSelect.append( '<option value="' + key + '"' + selected( key, lastKindSelected ) + '>' + kindsTexts[ key ] + ' (' + availableKinds[ key ] + ')</option>' );
-          }
-        }
-
-        // List the available users, adding the number of occurances.
-        $userSelect.removeAttr( 'disabled' ).html( '<option value="">All Users - (' + Object.keys( availableUsers ).length + ' Users)</option>' );
-
-        // Sort alphabetically.
-        var availableUsersSorted = [];
-        for ( var userID in availableUsers ) {
-          availableUsersSorted.push( [ userID, availableUsers[ userID ].username.toLowerCase() ] );
-        }
-        availableUsersSorted.sort( function( a, b ) { return ( a[1] > b[1] ) ? 1 : ( ( b[1] > a[1] ) ? -1 : 0 ); } );
-
-        availableUsersSorted.forEach(function( val ) {
-          var userID = val[0];
-          if ( availableUsers.hasOwnProperty( userID ) ) {
-            $userSelect.append( '<option value="' + userID + '"' + selected( userID, lastUserSelected ) + '>' + availableUsers[ userID ].username + ' (' + availableUsers[ userID ].count + ')</option>' );
-          }
-        });
 
         // Filter the notifications to make sure that the previously selected filter gets reapplied.
         filterNotifications();
@@ -1752,12 +1797,13 @@ jQuery( document ).ready(function( $ ) {
     .change( reloadNotifications );
 
     $( '<div/>', { 'id'  : 'th-nr-div' } )
-    .append( $kindSelect.change( filterNotifications ) )
-    .append( $userSelect.change( filterNotifications ) )
+    .append( $kindSelect.change( function() { filterNotifications( 'kind' ); } ) )
+    .append( $userSelect.change( function() { filterNotifications( 'user' ); } ) )
     .append( $( '<label/>', { html : 'Show:', title : 'How many notifications to show' } ).append( $countSelect ) )
     .append( $( '<i/>', { 'id' : 'th-nr-reload', title : 'Reload notifications' } ).click( reloadNotifications ) ) // Add reload button.
     .appendTo( $( '#new_notifications_wrapper' ) );
 
+    // Reload all notifications and set data attributes.
     reloadNotifications();
   }
 
@@ -1946,7 +1992,7 @@ jQuery( document ).ready(function( $ ) {
       '#th-nr-reload { display: inline-block; height: 16px; width: 16px; vertical-align: text-bottom; cursor: pointer; margin: 0 5px; background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC2klEQVQ4T32SS08TURiG37l0ept2aGnxAqIoprXVyNqNW1YaF3YhwcR4SVRYiFFJRDHES8UYjBeMMUYj0RhIZCXxFxhDwBAUsKlKJAJFaellpu1MZ+Y4rbEBL5zdOfnOc773Ow+FVVa4/7PA0aQ7rcunL4WC4r9KqdUAV/ujXgfHflcU9ZMKvelcyDf8Z/1fgOv9H30U2HYKZI/JxLq9HgfsVhbRL4uaDj08grHOgVBI+w1aAbj+ItICir7l2+JhPG4ekgLE0xoYGqiwU4gvJjEzlxouKPrBC83+SBFSBlx9Fj2+scbZ6650QNEZSHkdOYUgJ5PSY7yVRoWNILWUwdx8avDd4Nj+gYGQVgJ09n2oNzGmiYC/mhNlBpmsiqwoQpVlsBY7GLMVRM1Dl7OQ87nOjgO+rhURuvoid2pr3C0aa0daVCDGFzRdJ2GKkFeM2fKG4SxQsqmETtB0qdn/evkgf3XwNBLdULuuPpOnkBMzyGfTHV0H/VfOPRgRbDYhSXRtVFWw//JR//Q/f+HikynZW13DFTNL8RiyWmHdjUPBWBFg5vibmaVEa0/brtx/Peh4PCm71lRzqg5IiQXkMgbgZDC2miMrZtD+aGrcWendQTMmQBGRTKQ6wkcDV5YD2h9OdlM0daZ8RjB97ci2zaUZnH04cdnGO8+bbQ44LcDXmTlDFBJGQe3TaJYxPDi8dZOrzV/vAUVRiE4nMPVp8W73sWBrCXDm3sRawpKow+XlBacVa12MMUgR3+bTpQu16wXwDh5JSUdGzGNmJpbT9MLWnuMNs2WRTt1/v48zW17abDw8lXZUVbAQeAbE8CgpaviRVBFfkpCTJMOFfFPPie3PV5hY3LT2ju9mQT024tQ5eBt43lyKnJFkiGLWkCs9awhy5PbJnWUXyh0MDQ0FGIYJFAjdEFkU9iZldkta5qxFgGAuoMouo65C+miitbdGrFFN04YbGxuHfwJN4z4gjV4RIAAAAABJRU5ErkJggg=="); }' +
 
       // Notifications Reloaded.
-      '#new_notifications_popup .notifications, #new_notifications_popup .messages, #new_notifications_popup .friend_requests { max-height: 160px; width: 100%; overflow: scroll; }' +
+      '#new_notifications_popup .notifications, #new_notifications_popup .messages, #new_notifications_popup .friend_requests { max-height: 160px; width: 100%; overflow: auto; }' +
       '#new_notifications_popup .notifications .notifications_item, #new_notifications_popup .messages .notifications_item { width: 100%; }'
     ).appendTo( 'head' );
   }

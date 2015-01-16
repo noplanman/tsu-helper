@@ -1,9 +1,17 @@
 #Tsu Helper
 
 - Author: [Armando Lüscher](https://www.tsu.co/noplanman)
-- Version: 2.2 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+- Version: 2.3 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 - Short-Link for sharing: https://j.mp/tsu-helper
 - Disclaimer: Tsu Helper script is in no way affiliated with Tsu LLC. Use it at your [own risk](#known-issues).
+
+---
+
+I encourage you to read about the features and especially the [known issues](#known-issues) first.
+
+If you feel sure about what you're doing, you can skip ahead to the [installation](#installation) and get started with the Tsu Helper :-)
+
+---
 
 ##Details
 The Tsu Helper script adds a bunch of tweaks to make your Tsu experience more user friendly.
@@ -156,7 +164,7 @@ Whenever a new update is available, you will be notified visually. The username 
 
 ##Installation
 
-###With Plugin (recommended)
+###With Plugin
 1. Which browser?
   - Firefox: Install the [GreaseMonkey](https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/) plugin.
   - Chrome: Install the [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) plugin.
