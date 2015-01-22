@@ -1853,79 +1853,6 @@ jQuery( document ).ready(function( $ ) {
    */
   if ( Page.is( 'analytics' ) ) {
 
-    // Posts Archive table.
-    var $paTable = $( '<table/>', {
-      'id'  : 'th-pa-table'
-    });
-
-    // Table header.
-    var $paTableHeader = $( '<thead/>', {
-      html :
-        '<tr>' +
-          '<th title="Sort by Date">Posts Archive (by Tsu Helper)</th>' +
-          '<th title="Sort by Views"><span class="icon view_icon"></span></th>' +
-          '<th title="Sort by Likes"><span class="icon like_icon"></span></th>' +
-          '<th title="Sort by Comments"><span class="icon comment_icon"></span></th>' +
-          '<th title="Sort by Shares"><span class="icon share_icon"></span></th>' +
-        '</tr>'
-    })
-    .appendTo( $paTable );
-
-    // Add a filter to choose which type of posts to display.
-    var $paFilter = $( '<div/>', {
-      'id' : 'th-pa-filter',
-      html :
-        'Filter Posts: ' +
-        '<ul>' +
-          '<li><label><input id="th-pa-cb-post" type="checkbox" checked="checked" data-type="post" />Personal Posts <span></span></label></li>' +
-          '<li><label><input id="th-pa-cb-share" type="checkbox" checked="checked" data-type="share" />Shared Posts <span></span></label></li>' +
-          '<li><label><input id="th-pa-cb-wallpost" type="checkbox" checked="checked" data-type="wallpost" />Wall Posts by other Users <span></span></label></li>' +
-        '</ul>'
-    });
-    // Call the filter when a checkbox value gets changed.
-    var $paFilterCheckboxes = $paFilter.find( 'input[type=checkbox]' ).attr( 'disabled', 'disabled' ).change( function() { paFilter(); } );
-
-    // Message to display if no posts match the chosen filter.
-    var $paFilterEmpty = $( '<div/>', {
-      'id' : 'th-pa-filter-empty',
-      html : 'No posts match the selected filter.'
-    })
-    .hide();
-
-    // Table body.
-    var $paTableBody = $( '<tbody/>' )
-    .appendTo( $paTable );
-
-    // The row of the table to display the loading wheel and the "Load More Posts" button.
-    var $paLoaderDiv = $( '<div/>', { 'id' : 'th-pa-loader-div' } );
-
-    // Show only the loader wheel to start with.
-    var $paLoaderWheel   = $( '<span><img src="/assets/loader.gif" alt="Loading..." />Loading more posts...</span>' )
-    .appendTo( $paLoaderDiv );
-
-    // Button to "Load More Posts".
-    var $paLoadMorePosts = $( '<span class="button" style="float:none;">Load More Posts</span>' )
-    .hide()
-    .click(function() {
-      $paLoaderWheel.show();
-      $paLoadMorePosts.hide();
-      paGetPosts( $paLoadMorePosts.attr( 'data-before' ) );
-    })
-    .appendTo( $paLoaderDiv );
-
-    // Table wrapper.
-    $( '<div/>', {
-      'id' : 'th-pa-wrapper',
-      html : $paTable
-    })
-    .prepend( $paFilter )
-    .append( $paFilterEmpty )
-    .append( $paLoaderDiv )
-    .insertBefore( $( '.dashboard_post_statistic' ) );
-
-    // Get the first lot of posts.
-    paGetPosts();
-
     /**
      * Update the table zebra striping.
      * @param  {jQuery} $rowsVisible If the visible rows have already been found and passed, use those.
@@ -2103,6 +2030,80 @@ jQuery( document ).ready(function( $ ) {
         $paFilterCheckboxes.removeAttr( 'disabled' );
       });
     }
+
+
+    // Posts Archive table.
+    var $paTable = $( '<table/>', {
+      'id'  : 'th-pa-table'
+    });
+
+    // Table header.
+    var $paTableHeader = $( '<thead/>', {
+      html :
+        '<tr>' +
+          '<th title="Sort by Date">Posts Archive (by Tsu Helper)</th>' +
+          '<th title="Sort by Views"><span class="icon view_icon"></span></th>' +
+          '<th title="Sort by Likes"><span class="icon like_icon"></span></th>' +
+          '<th title="Sort by Comments"><span class="icon comment_icon"></span></th>' +
+          '<th title="Sort by Shares"><span class="icon share_icon"></span></th>' +
+        '</tr>'
+    })
+    .appendTo( $paTable );
+
+    // Add a filter to choose which type of posts to display.
+    var $paFilter = $( '<div/>', {
+      'id' : 'th-pa-filter',
+      html :
+        'Filter Posts: ' +
+        '<ul>' +
+          '<li><label><input id="th-pa-cb-post" type="checkbox" checked="checked" data-type="post" />Personal Posts <span></span></label></li>' +
+          '<li><label><input id="th-pa-cb-share" type="checkbox" checked="checked" data-type="share" />Shared Posts <span></span></label></li>' +
+          '<li><label><input id="th-pa-cb-wallpost" type="checkbox" checked="checked" data-type="wallpost" />Wall Posts by other Users <span></span></label></li>' +
+        '</ul>'
+    });
+    // Call the filter when a checkbox value gets changed.
+    var $paFilterCheckboxes = $paFilter.find( 'input[type=checkbox]' ).attr( 'disabled', 'disabled' ).change( function() { paFilter(); } );
+
+    // Message to display if no posts match the chosen filter.
+    var $paFilterEmpty = $( '<div/>', {
+      'id' : 'th-pa-filter-empty',
+      html : 'No posts match the selected filter.'
+    })
+    .hide();
+
+    // Table body.
+    var $paTableBody = $( '<tbody/>' )
+    .appendTo( $paTable );
+
+    // The row of the table to display the loading wheel and the "Load More Posts" button.
+    var $paLoaderDiv = $( '<div/>', { 'id' : 'th-pa-loader-div' } );
+
+    // Show only the loader wheel to start with.
+    var $paLoaderWheel   = $( '<span><img src="/assets/loader.gif" alt="Loading..." />Loading more posts...</span>' )
+    .appendTo( $paLoaderDiv );
+
+    // Button to "Load More Posts".
+    var $paLoadMorePosts = $( '<span class="button" style="float:none;">Load More Posts</span>' )
+    .hide()
+    .click(function() {
+      $paLoaderWheel.show();
+      $paLoadMorePosts.hide();
+      paGetPosts( $paLoadMorePosts.attr( 'data-before' ) );
+    })
+    .appendTo( $paLoaderDiv );
+
+    // Table wrapper.
+    $( '<div/>', {
+      'id' : 'th-pa-wrapper',
+      html : $paTable
+    })
+    .prepend( $paFilter )
+    .append( $paFilterEmpty )
+    .append( $paLoaderDiv )
+    .insertBefore( $( '.dashboard_post_statistic' ) );
+
+    // Get the first lot of posts.
+    paGetPosts();
   }
 
 
