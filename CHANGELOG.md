@@ -1,5 +1,10 @@
 #Change Log
 
+##Version 2.4
+
+- Introduced "Posts Archive" on Analytics page.
+- A few bug fixes.
+
 ##Version 2.3
 
 - Added new notifications to filter (Donations and new users in Network).

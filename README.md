@@ -1,7 +1,7 @@
 #Tsu Helper
 
 - Author: [Armando Lüscher](https://www.tsu.co/noplanman)
-- Version: 2.3 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+- Version: 2.4 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 - Short-Link for sharing: https://j.mp/tsu-helper
 - Disclaimer: Tsu Helper script is in no way affiliated with Tsu LLC. Use it at your [own risk](#known-issues).
 
@@ -32,7 +32,7 @@ NOTE: The Friends and Followers Manager cannot be disabled, as it has no backgro
 
 ![Settings window][settings-window]
 
-Settings
+*Settings*
 - Hide Ads: Show or Hide all the Advertisements. They are still loaded and displayed, but moved out of view.
 - Enable [Quick Mentions](#quick-mention-in-comments-and-replies): Add Quick Mention links to comments and replies.
 - [Emphasize Nested Replies](#make-things-easier-for-the-eye): Emphasize the parent of nested comment replies, to make them more visible.
@@ -44,16 +44,23 @@ Settings
   - Hover Cards Only: Only load the Friends and Followers counts when hovering over the username of a post or comment. (This option still displays counts on all other pages!)
 - [Notifications Reloaded](#notifications-reloaded) count: Choose how many notifications should be shown in the Notifications Popup.
 
-Buttons
-- Save: Save the settings and reload the page for them to take effect.
-- Back: Back to the About window, without saving the settings.
-- Defaults: Reset settings to default values. (The settings must be saved to take effect or can be cancelled by choosing the "Back" button.)
+*Buttons*
+- **Save**: Save the settings and reload the page for them to take effect.
+- **Back**: Back to the About window, without saving the settings.
+- **Defaults**: Reset settings to default values. (The settings must be saved to take effect or can be cancelled by choosing the "Back" button.)
+
+###Posts Archive
+On the "Analytics" page, there is a new section called "Posts Archive", which shows a list of all the posts on your wall and gives you the possibility to sort them by Views, Likes, Comments and Shares. Also, you can easily expand the text to read through your posts without having to open them. But of course you can also open them with just 1 click ;-)
+Changing the privacy setting for each post is also a breeze!
+
+![Posts Archive][posts-archive]
+- Display all your posts in a nice Archive list.
 
 ###FFC (Friends and Followers Counts)
 
 ---
 
-IMPORTANT! Check the [known issues](#known-issues) below.
+***IMPORTANT!*** Check the [known issues](#known-issues) below.
 
 ---
 
@@ -78,7 +85,7 @@ FFC works on the Home Feed, User Diary, Messages and Discover Users pages.
 
 ---
 
-IMPORTANT! Check the [known issues](#known-issues) below.
+***IMPORTANT!*** Check the [known issues](#known-issues) below.
 
 ---
 
@@ -164,17 +171,19 @@ Whenever a new update is available, you will be notified visually. The username 
 
 ##Installation
 
+Tsu Helper can be installed on a **PC with Windows**, or a **Mac with OSX**.
+Simply choose the plugin that corresponds to your web browser below and download the script, as easy as that!
+
 ###With Plugin
 1. Which browser?
-  - Firefox: Install the [GreaseMonkey](https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/) plugin.
-  - Chrome: Install the [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) plugin.
-  - Opera: Install the [ViolentMonkey](https://addons.opera.com/en/extensions/details/violent-monkey/) extension.
-  - Safari (untested): Install the [NinjaKit](http://www.pimpmysafari.com/items/NinjaKit-GreaseKit-for-Safari/) extension.
-  - Internet Explorer (experimental): Install [TrixIE](http://download3.fyxm.net/2/2588/TrixieSetup.msi). Restart Internet Explorer after the installation is complete. Save the script (from a link below) to 'C:\Program Files\Bhelpuri\Trixie\Scripts' (or equivalent). In Internet Explorer, you can now activate the script in the 'Tools->Trixie Options' menu.
+  - **Firefox**: Install the [GreaseMonkey](https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/) plugin.
+  - **Chrome**: Install the [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) plugin.
+  - **Opera**: Install the [ViolentMonkey](https://addons.opera.com/en/extensions/details/violent-monkey/) extension.
+  - **Safari** & **Internet Explorer**: *NOT SUPPORTED!*
 
 2. Tsu Helper script can be found here (just choose any one)
-  - https://openuserjs.org/scripts/noplanman/Tsu_Helper
-  - https://greasyfork.org/en/scripts/6372-tsu-helper
+  - [Get it on OpenUserJS.org](https://openuserjs.org/install/noplanman/Tsu_Helper.user.js)
+  - [Get it on GreasyFork](https://greasyfork.org/en/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js)
 
 ###~~With Bookmarklet~~
 As of version 1.5 the bookmarklet is not supported any more because the script has become too big!
@@ -216,3 +225,4 @@ Use them at your own risk!
 [ffc-discover]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-discover.png "FFC Discover"
 [notification-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-count.png "Notification Count"
 [notification-popup]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-popup.png "Notification Popup"
+[posts-archive]: https://github.com/noplanman/tsu-helper/raw/master/assets/posts-archive.png "Posts Archive"

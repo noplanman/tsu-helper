@@ -4,9 +4,13 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     2.3
+// @version     2.4
+// @copyright   2014-2015 Armando Lüscher
 // @author      Armando Lüscher
+// @oujs:author noplanman
 // @grant       none
+// @homepageURL https://j.mp/tsu-helper
+// @supportURL  https://j.mp/tsu-helper-issues
 // ==/UserScript==
 
 /**
@@ -178,7 +182,7 @@ jQuery( document ).ready(function( $ ) {
    */
   var Updater = {
     // The local version.
-    localVersion : 2.3,
+    localVersion : 2.4,
 
     // The remote version (loaded in the "check" method).
     remoteVersion : null,
@@ -271,9 +275,9 @@ jQuery( document ).ready(function( $ ) {
       } else if ( $( 'body.show_post' ).length ) {         Page.current = 'post';          // Single post.
       } else if ( $( 'body.discover' ).length ) {          Page.current = 'discover';      // Discover Users.
         Observer.queryToLoadFF  = 'body.discover .tree_child_fullname';
-        // No observer necessary!
-        // TODO: Also, with observer, this page goes crazy...
-        Observer.queryToObserve = '';
+        Observer.queryToObserve = ''; // No observer necessary!
+      } else if ( $( 'body.dashboard' ).length ) {         Page.current = 'analytics';     // Analytics.
+        Observer.queryToObserve = ''; // No observer necessary!
       } else if ( $( 'body.tree' ).length ) {              Page.current = 'tree';          // Family tree.
         Observer.queryToLoadFF  = 'body.tree .tree_child_fullname';
         Observer.queryToObserve = '.tree_page';
@@ -888,16 +892,18 @@ jQuery( document ).ready(function( $ ) {
 
               // Added nodes.
               for ( var ma = mutation.addedNodes.length - 1; ma >= 0; ma-- ) {
+                var addedNode = mutation.addedNodes[ ma ];
                 // In case the node has no className (e.g. textnode), just ignore it.
-                if ( mutation.addedNodes[ ma ].className && itemsInArray( mutation.addedNodes[ ma ].className.split( ' ' ), classes ) ) {
+                if ( addedNode.hasOwnProperty( 'className' ) && 'string' === typeof addedNode.className && itemsInArray( addedNode.className.split( ' ' ), classes ) ) {
                   return true;
                 }
               }
 
               // Removed nodes.
               for ( var mr = mutation.removedNodes.length - 1; mr >= 0; mr-- ) {
+                var removedNode = mutation.removedNodes[ mr ];
                 // In case the node has no className (e.g. textnode), just ignore it.
-                if ( mutation.removedNodes[ mr ].className && itemsInArray( mutation.removedNodes[ mr ].className.split( ' ' ), classes ) ) {
+                if ( removedNode.hasOwnProperty( 'className' ) && 'string' === typeof removedNode.className && itemsInArray( removedNode.className.split( ' ' ), classes ) ) {
                   return true;
                 }
               }
@@ -1019,7 +1025,6 @@ jQuery( document ).ready(function( $ ) {
       }
 
       $( 'body' ).on( 'dblclick', '.post_header_name, .share_header', function( event ) {
-        //var post_id = $( this ).closest( '.post' ).data( 'post-id' );
         var $post      = $( this ).closest( '.post' );
         var isShare    = $post.find( '.share_header' ).length;
         var isOriginal = ! $( this ).hasClass( 'share_header' );
@@ -1367,7 +1372,7 @@ jQuery( document ).ready(function( $ ) {
       }
 
       // Add a new <span> element to the user link.
-      var $userLinkSpan = $( '<span/>', { html: '<img class="th-ffc-loader-wheel" src="/assets/loader.gif" alt="Loading..." />', 'class': 'th-ffc-span' } );
+      var $userLinkSpan = $( '<span/>', { html: '<img class="th-ffc-loader-wheel" src="/assets/loader.gif" alt="Loading..." />', class: 'th-ffc-span' } );
       $userLink.after( $userLinkSpan );
 
       // Special case for these pages, to make it look nicer and fitting.
@@ -1808,6 +1813,300 @@ jQuery( document ).ready(function( $ ) {
   }
 
   /**
+   * Convert timestamp to date and time, simplified date() function from PHP.
+   * @param  {string}  format    Format of the date and time.
+   * @param  {integer} timestamp UNIX timestamp.
+   * @return {string}            The pretty date and time string.
+   */
+  function phpDate( format, timestamp ) {
+    var d = new Date( timestamp * 1000 );
+
+    var months = [ 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December' ];
+    var year  = d.getFullYear();
+    var month = d.getMonth();
+    var day   = d.getDate();
+    var hour  = d.getHours();
+    var mins  = d.getMinutes();
+    var secs  = d.getSeconds();
+
+    // Check date() of PHP.
+    var mapObj = {
+      H : ( '0' + hour ).slice( -2 ),
+      i : ( '0' + mins ).slice( -2 ),
+      s : ( '0' + secs ).slice( -2 ),
+      Y : d.getFullYear(),
+      F : months[ month ],
+      m : ( '0' + month ).slice( -2 ),
+      d : ( '0' + day ).slice( -2 ),
+      j : day
+    };
+
+    var re = new RegExp( Object.keys( mapObj ).join( '|' ), 'gi' );
+    return format.replace( re, function( matched ){
+      return mapObj[ matched ];
+    });
+  }
+
+
+  /**
+   * Add Post Archive to Analytics page to find previous post easier and add ALL the details!
+   */
+  if ( Page.is( 'analytics' ) ) {
+
+    // Posts Archive table.
+    var $paTable = $( '<table/>', {
+      'id'  : 'th-pa-table'
+    });
+
+    // Table header.
+    var $paTableHeader = $( '<thead/>', {
+      html :
+        '<tr>' +
+          '<th title="Sort by Date">Posts Archive (by Tsu Helper)</th>' +
+          '<th title="Sort by Views"><span class="icon view_icon"></span></th>' +
+          '<th title="Sort by Likes"><span class="icon like_icon"></span></th>' +
+          '<th title="Sort by Comments"><span class="icon comment_icon"></span></th>' +
+          '<th title="Sort by Shares"><span class="icon share_icon"></span></th>' +
+        '</tr>'
+    })
+    .appendTo( $paTable );
+
+    // Add a filter to choose which type of posts to display.
+    var $paFilter = $( '<div/>', {
+      'id' : 'th-pa-filter',
+      html :
+        'Filter Posts: ' +
+        '<ul>' +
+          '<li><label><input id="th-pa-cb-post" type="checkbox" checked="checked" data-type="post" />Personal Posts <span></span></label></li>' +
+          '<li><label><input id="th-pa-cb-share" type="checkbox" checked="checked" data-type="share" />Shared Posts <span></span></label></li>' +
+          '<li><label><input id="th-pa-cb-wallpost" type="checkbox" checked="checked" data-type="wallpost" />Wall Posts by other Users <span></span></label></li>' +
+        '</ul>'
+    });
+    // Call the filter when a checkbox value gets changed.
+    var $paFilterCheckboxes = $paFilter.find( 'input[type=checkbox]' ).attr( 'disabled', 'disabled' ).change( function() { paFilter(); } );
+
+    // Message to display if no posts match the chosen filter.
+    var $paFilterEmpty = $( '<div/>', {
+      'id' : 'th-pa-filter-empty',
+      html : 'No posts match the selected filter.'
+    })
+    .hide();
+
+    // Table body.
+    var $paTableBody = $( '<tbody/>' )
+    .appendTo( $paTable );
+
+    // The row of the table to display the loading wheel and the "Load More Posts" button.
+    var $paLoaderDiv = $( '<div/>', { 'id' : 'th-pa-loader-div' } );
+
+    // Show only the loader wheel to start with.
+    var $paLoaderWheel   = $( '<span><img src="/assets/loader.gif" alt="Loading..." />Loading more posts...</span>' )
+    .appendTo( $paLoaderDiv );
+
+    // Button to "Load More Posts".
+    var $paLoadMorePosts = $( '<span class="button" style="float:none;">Load More Posts</span>' )
+    .hide()
+    .click(function() {
+      $paLoaderWheel.show();
+      $paLoadMorePosts.hide();
+      paGetPosts( $paLoadMorePosts.attr( 'data-before' ) );
+    })
+    .appendTo( $paLoaderDiv );
+
+    // Table wrapper.
+    $( '<div/>', {
+      'id' : 'th-pa-wrapper',
+      html : $paTable
+    })
+    .prepend( $paFilter )
+    .append( $paFilterEmpty )
+    .append( $paLoaderDiv )
+    .insertBefore( $( '.dashboard_post_statistic' ) );
+
+    // Get the first lot of posts.
+    paGetPosts();
+
+    /**
+     * Update the table zebra striping.
+     * @param  {jQuery} $rowsVisible If the visible rows have already been found and passed, use those.
+     */
+    function paZebra( $rowsVisible ) {
+      // If no visible rows have been passed, load them from the table.
+      $rowsVisible = $rowsVisible || $paTableBody.find( 'tr:visible' );
+
+      $rowsVisible.filter( ':even' ).addClass( 'th-pa-row-even' ).removeClass( 'th-pa-row-odd' );
+      $rowsVisible.filter( ':odd' ).addClass( 'th-pa-row-odd' ).removeClass( 'th-pa-row-even' );
+    }
+
+    /**
+     * Filter the posts by the selected types and update the table's zebra striping.
+     */
+    function paFilter() {
+      $paFilterCheckboxes.each(function() {
+        var $rows = $paTableBody.find( '.th-pa-pt-' + $( this ).attr( 'data-type' ) );
+        if ( this.checked ) {
+          $rows.show();
+        } else {
+          $rows.hide();
+        }
+        $( this ).siblings( 'span' ).html( '(' + $rows.length + ')' );
+      });
+
+      var $rowsVisible = $paTableBody.find( 'tr:visible' );
+      if ( $rowsVisible.length > 0 ) {
+        // Update the zebra striping of the table.
+        paZebra( $rowsVisible );
+        $paFilterEmpty.hide();
+      } else {
+        $paFilterEmpty.show();
+      }
+    }
+
+    /**
+     * Get all the posts before the passed post ID.
+     * @param  {integer} before The last loaded post ID.
+     */
+    function paGetPosts( before ) {
+      // Disable the filter checkboxes while loading.
+      $paFilterCheckboxes.attr( 'disabled', 'disabled' );
+
+      var url = '/api/v1/posts/list/' + window.current_user.id + '?_=' + Date.now() + ( ( undefined !== before ) ? '&before=' + before : '' );
+      $.getJSON( url, function( data ) {
+        if ( ! data.hasOwnProperty( 'data' ) ) {
+          $paLoaderDiv.html( 'Error occured, please try again later.' );
+          return false;
+        }
+
+        // We have our list of posts, extract all the info and add the rows to the table.
+        data.data.forEach(function( post ) {
+          // Remember the last post ID.
+          $paLoadMorePosts.attr( 'data-before', post.id );
+
+          // Find out what type of post this is.
+          var postTypeText  = 'Personal Post';
+          var postTypeClass = 'post';
+          if ( post.is_share ) {
+            postTypeText  = 'Shared Post';
+            postTypeClass = 'share';
+          } else if ( post.user_id != window.current_user.id ) {
+            postTypeText  = 'Wall Post by ' + post.user.full_name;
+            postTypeClass = 'wallpost';
+          }
+
+          // Put together the post links.
+          var postLink = '/' + post.user.username + '/' + post.id
+          var originalLink = '';
+          if ( post.is_share ) {
+            originalLink = '/' + post.original_user.username + '/' + post.shared_id;
+          }
+
+
+          var privacyIcon = '';
+          var selectBox =
+            '<ul class="privacy_' + post.id + ' black_dropdown_box" >' +
+              '<li class="' + ( ( 1 === post.privacy ) ? 'checked_privacy_option' : '' ) + '"><img src="/assets/check_mark.png" height="16" width="16" alt="Check mark" style="display: ' + ( ( 1 === post.privacy ) ? 'inline' : 'none' ) + ';"><a href="/posts/change_privacy/' + post.id + '/1/' + ( post.is_share ? 'share' : 'normal' ) + '" data-method="patch" data-remote="true">only friends</a></li>' +
+              '<li class="' + ( ( 0 === post.privacy ) ? 'checked_privacy_option' : '' ) + '"><img src="/assets/check_mark.png" height="16" width="16" alt="Check mark" style="display: ' + ( ( 0 === post.privacy ) ? 'inline' : 'none' ) + ';"><a href="/posts/change_privacy/' + post.id + '/0/' + ( post.is_share ? 'share' : 'normal' ) + '" data-method="patch" data-remote="true">public</a></li>' +
+            '</ul>';
+
+          // Depending on the post type, the privacy options are handled differently.
+          if ( 'post' === postTypeClass ) {
+            privacyIcon =
+              '<a href="#" id="privacy_icon">' +
+                ( ( 0 === post.privacy ) ? '<span title="Public" class="privacy_icon_public"></span>' : '' ) +
+                ( ( 1 === post.privacy ) ? '<span title="Only Friends" class="privacy_icon_private"></span>' : '' ) +
+              '</a>' + selectBox;
+          } else if ( 'share' === postTypeClass ) {
+            privacyIcon =
+              '<a href="#" id="privacy_icon">' +
+                ( ( 0 === post.privacy ) ? '<span title="Public" class="privacy_icon_public"></span>' : '' ) +
+                ( ( 1 === post.privacy ) ? '<span><img alt="Only Friends" title="Only Friends" src="/assets/friends_icon.png" width="16" height="16" /></span>' : '' ) +
+              '</a>' + selectBox;
+          } else if ( 'wallpost' === postTypeClass ) {
+            privacyIcon =
+              '<a href="#" id="privacy_icon" title="Can only be changed in Settings &raquo; Privacy &raquo; Post on your Diary">' +
+                ( ( 0 === post.privacy ) ? '<span class="privacy_icon_public"></span>' : '' ) +
+                ( ( 1 === post.privacy ) ? '<span class="privacy_icon_private"></span>' : '' ) +
+              '</a>'; // No select box, as this can't be changed per post. Only in Settings->Privacy for ALL wall posts.
+          }
+
+
+          // The post entry row for the table.
+          var $tr = $(
+            '<tr data-post-id="' + post.id + '" class="th-pa-pt-' + postTypeClass + '">' +
+              '<td>' +
+                ( ( post.has_picture ) ? '<a class="th-pa-picture" rel="posts-archive-gallery" href="' + post.picture_url + '"><img alt="' + post.picture_url.split( '/' ).pop() + '" src="' + post.picture_url + '" /></a>' : '' ) +
+                '<div class="th-pa-post">' +
+                  '<ul class="th-pa-meta">' +
+                    '<li title="' + postTypeText + '"><i class="th-icon th-pa-pt"></i></li>' +
+                    '<li class="th-pa-privacy privacy_box">' + privacyIcon + '</li>' +
+                    '<li class="th-pa-date" data-date="' + post.created_at_int + '" title="' + phpDate( 'd. F Y - H:i:s', post.created_at_int ) + '">' + phpDate( 'd. F', post.created_at_int ) + '</li>' +
+                    '<li class="th-pa-expand button th-pa-stealth" title="Expand text">+</li>' +
+                    '<li class="th-pa-post-link th-pa-stealth"><a href="' + postLink + '" target="_blank" title="Open post">Open</a></li>' +
+                    ( ( post.is_share ) ? '<li class="th-pa-original-link th-pa-stealth"><a href="' + originalLink + '" target="_blank" title="Open original post">Open original</a></li>' : '' ) +
+                  '</ul>' +
+                  ( ( '' !== post.title   && null !== post.title )   ? '<div class="th-pa-title th-pa-ellipsis">'   + post.title.trim()   + '</div>' : '' ) +
+                  ( ( '' !== post.content && null !== post.content ) ? '<div class="th-pa-content th-pa-ellipsis">' + post.content.trim() + '</div>' : '' ) +
+                '</div>' +
+              '</td>' +
+              '<td>' + post.view_count + '</td>' +
+              '<td>' + post.like_count + '</td>' +
+              '<td>' + post.comment_count + '</td>' +
+              '<td>' + post.share_count + '</td>' +
+            '</tr>'
+          )
+          .appendTo( $paTableBody );
+
+          // Make the picture clickable to expand into a Fancybox.
+          $tr.find( '.th-pa-picture' ).fancybox( { padding : 0 } );
+
+          $tr.find( '.th-pa-expand' ).click(function() {
+            // Are we expanding or extracting.
+            if ( '+' === $( this ).text() ) {
+              $tr.find( '.th-pa-title, .th-pa-content' ).removeClass( 'th-pa-ellipsis' );
+              $( this ).text( '-' ).tooltipster( 'update', 'Collapse text' );
+            } else {
+              $tr.find( '.th-pa-title, .th-pa-content' ).addClass( 'th-pa-ellipsis' );
+              $( this ).text( '+' ).tooltipster( 'update', 'Expand text' );
+            }
+          });
+        });
+
+        // Initialise or update the tablesorter.
+        if ( undefined === before ) {
+          $paTable
+          .tablesorter({
+            // First column by date, others by text.
+            textExtraction : function( t ) {
+              return ( 1 === $( t ).find( '.th-pa-date' ).length ) ? $( t ).find( '.th-pa-date' ).attr( 'data-date' ) : $( t ).text()
+            }
+          })
+          .bind( 'sortEnd', function() {
+            paZebra();
+          });
+        } else {
+          $paTable.trigger( 'update' );
+        }
+
+        // Update zebra striping.
+        paFilter();
+
+        // Are there more posts?
+        if ( data.data.length < 10 ) {
+          $paLoaderDiv.html( 'No more posts to load.' );
+        } else {
+          $paLoaderWheel.hide();
+          $paLoadMorePosts.show();
+        }
+      })
+      .always(function() {
+        // Enable the filter checkboxes.
+        $paFilterCheckboxes.removeAttr( 'disabled' );
+      });
+    }
+  }
+
+
+  /**
    * Add a specific class to all nested reply parent elements to emphasize them.
    */
   function emphasizeNestedRepliesParents() {
@@ -1847,7 +2146,7 @@ jQuery( document ).ready(function( $ ) {
     $( '.messages_content .message_box' ).each(function(){
       if ( ! $( this ).hasClass( 'tsu-helper-tweaked' ) ) {
         var $text = $( this ).find( '.message-text' );
-        $text.html( $text.html().trim().replace(/(?:\r\n|\r|\n)/g, '<br />') );
+        $text.html( $text.html().trim().replace( /(?:\r\n|\r|\n)/g, '<br />' ) );
         $( this ).addClass( 'tsu-helper-tweaked' );
       }
     });
@@ -1993,7 +2292,55 @@ jQuery( document ).ready(function( $ ) {
 
       // Notifications Reloaded.
       '#new_notifications_popup .notifications, #new_notifications_popup .messages, #new_notifications_popup .friend_requests { max-height: 160px; width: 100%; overflow: auto; }' +
-      '#new_notifications_popup .notifications .notifications_item, #new_notifications_popup .messages .notifications_item { width: 100%; }'
+      '#new_notifications_popup .notifications .notifications_item, #new_notifications_popup .messages .notifications_item { width: 100%; }' +
+
+      // Posts Archive.
+      '#th-pa-wrapper * { box-sizing: border-box; }' +
+      '#th-pa-wrapper { float: left; border: 0px solid rgba(0,0,0,0.1); border-collapse: collapse; width: 100%; background: white; margin: 10px 0; background-color: #f6f7f8; }' +
+      '#th-pa-wrapper ul { margin: 0; }' +
+
+      '#th-pa-filter-empty { padding: 10px; font-weight: bold; background-color: #eee; }' +
+      '#th-pa-filter { padding: 4px 10px; font-weight: bold; }' +
+      '#th-pa-filter ul { display: inline-block; }' +
+      '#th-pa-filter label { cursor: pointer; font-weight: normal; }' +
+
+      '#th-pa-table { border: 0; border-collapse: collapse; width: 100%; line-height: 20px; }' +
+      '#th-pa-table thead { font-size: 1.5em; background-color: #fff; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }' +
+      '#th-pa-table th { padding: 10px; }' +
+      '#th-pa-table th:not(:first-child), #th-pa-table td:not(:first-child) { width: 40px; text-align: center; border-left: 1px solid rgba(0,0,0,0.05); }' +
+
+      '.th-pa-row-even { background-color: #eee; }' +
+      '.th-pa-row-odd  { background-color: #fff; }' +
+
+      '#th-pa-loader-div { padding: 15px; font-weight: bold; }' +
+      '#th-pa-loader-div img { vertical-align: middle; margin-right: 5px; }' +
+
+      '#th-pa-table thead .icon   { margin: 0; width: 24px; height: 24px; }' +
+      '#th-pa-table .view_icon    { background-position: -202px -7px; }' +
+      '#th-pa-table .share_icon   { background-position: -232px -7px; }' +
+      '#th-pa-table .like_icon    { background-position: -263px -7px; }' +
+      '#th-pa-table .comment_icon { background-position: -292px -7px; }' +
+
+      '.th-pa-privacy .privacy_icon_private { background: url("/assets/friends_icon.png") no-repeat !important; background-size: 15px !important; }' +
+      '.th-pa-privacy #privacy_icon span { width: 15px; height: 15px; }' +
+      '.th-pa-privacy #privacy_icon span img { width: 15px; height: 15px; }' +
+
+      '.th-pa-pt-post     .th-pa-pt { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACkUlEQVQ4T3XSW0hTcRwH8O9/N5vb2XTeNufCG0q2lKWYCoGQURQiPSzpISiIQnzoQkbgS9FDINGjUb30kqQUBEIaURR7qNzyNmuoZdPMXd3cObtfPJ0lyg7T39Phd37/D1/4/Qgy6r0t8BBgL2X2tr9ZliUikXCIoYP9nU2l3u0+yRx+Z/PT+v1KapNls4yZX15o1Xms2xd8mgig71RLAZ0e4gHj3310lVZBJVLZwI+fLhxrKMXKRpx1ekJPAkz4+tk2XYQHvLGu0+WlCiqa3MxKsGT34HSjFtEkCzuHOFzM42AoeoMHjE576coyJWUZG+YB+uNG/F7eAtIV4ZBlf5xd5RAe8NrioavL83ZNYOeAzJJLJYjGCcMDXn110zWV+dTkOD9BXYcR6z5m5336kVBAsEHHozvAA5PysoTUPkqyCwJZjh4a5QWoFed32+j/nlQkgG3Rt5Vg4EPBoEZV21OuboZMqkIo4oPdOYHAnyJQG8ZdEcPJbszNrzPk/lt1n66kbqBS24hQzI1EKgyxMBdCNg8rnknIREboCq9kIVKxADM2D0PujemW2vSdFeGEgwPWkGRj2IyLYTGF0XWmHeZpEzT+W1lAA5dgas7NkLujVWxrfTu+mCcgz49DqQIsnxIoLMnF0bYj+Dz7ER0GKwgR8pBcLoFl1sWQ/pc1S02HDlesOuZhNvmxT0ogVxIYWoogl1RhxrqIisjV7AQnumGecjLk9osDfZpizYC6RAKHy4EFaxCGViUUsmL8dURQQJ1DddnFLCCdYOLb2tYWbj6vHyxS5fdoiimIc1JIxIRwuhnEgs2JQllvdK9dBvzekZ07uPassYcb7OXu42Ayllr0rsWGh+7YRvY8BCDE/XP9AzObEEcy9WOXAAAAAElFTkSuQmCC"); }' +
+      '.th-pa-pt-share    .th-pa-pt { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACaElEQVQ4T4XSX0hTURwH8O+5u9e8btetP1JuLUrBSIuRFUQvlpWQFiihyIJ6sYcei3qqhx6lB4nqxVw9BEX0EPQHKyKE/hCUIpZuRKl3Nsttbrpzt3nd3D3daZPdZnXgci+/c36f++P8fgR565Uv1gWwjvxY7psxRnjedE+h8YvHdtunc3GSf/ilb4Zu32SVNMYKjKHRaTg22FgoGu9Jx3Chce9amj1kAJ6PRGmlo1RKZwoB77cgDrrsmJhNsalw4mZMSZ5t2+ecMwC9nyN0c7lZUlMLgEkwVDEmh9G0ywF1gUHWkZ9BpTueUM8ZgCeDYVpxq1YihMN8ew+0yrplZNy/BGTXnI74Z1IsoCMG4PG7MWXL/QaLvc6Nyb47WDh+FVr1kcUkWQfyl0UsgpoiChlwl3YxQhZvnvGihRfNpKrhBJLxOAJvHyLT3Am2swWRqLKcn/2riSOYpSmVvG+1UteZKxJLJXVBQybyHZlJL0iJDWmrE/LrR9DcN0C2HTBUIPIcfF+jCnnTbKM1hxulTFjO1gCmJqAloiCCCMG5A3PmcshBCr7DUwAMf4kopK/JRqtrt0rpwIix9xwPZnVgIpQGTl2DqeaPCgQOQ76wQl4cKu0Cxy1Nn6DfgcCTqrJ5zDMTArOrQI6eR1HD6YLBEnVgcDikGLpw+6lX2djTaKmoWIPx0QiE1ksoqj+50mSjRAf6PwWNgKd3lJZfr5cIx6HYfRnF+9tXTM4Gs8DHwSkj0P3MT/e4yqRkIql3Qfprcg74MPDDCHTe7fdYV69r+2dm3mZsZvqB4Q70PbP+rP/9/p+T0A8EfwHTFvU4JDA5ZgAAAABJRU5ErkJggg=="); }' +
+      '.th-pa-pt-wallpost .th-pa-pt { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACeElEQVQ4T4WTXUiTURzGn/djc7pPW2vTqZgf3Wh+ZMgM0sI7LaSLjEC60ouii5K8KC9UiOimCLqIMoJIo7S7QIIQEqILNcXUVqx01nTfe91edWvOnd7X5dt0ix44nMOf5/z4f5xDIUmj1uBdgLQnx3bOhBCKZZnnfGit+/TRXN9OnEo2v7VyofICrTpOSApj5rsPZpOOeAJr/ZtBdDVZ9CHRtAvwZj4QKjJlqWNgUgCfv7nRWJmLH6tR4vKuPwryG1dbj+WHJcDQ2TK536AN/+KWaVaTj9quF2DVBgm0YPeiucaMSIzALkCcbv7h2nqkUwI86ai+RRj5daMpB06HC0ZLC8ynOiXA4lICICosQJa4KHEIEAkwcLl2odpy8qB2nxYrPx2wr3hRdHFAAtgFQLJUmXJEohQvAV52WnoLD1X06A1GLC8tIlrYAF3dBemOP8BLZ/ESQ1NYDUUjEuDZpSMlSo3GptLowK9yMLQ9gMJQnG6i27FMlobVFkhkcHNUb1Zw7J268ivn3K/GUHC+BbP2Dygu7UOGLFH3XomAua9+nup9ndeuyJD3l+bX4HBeC/iwE5lyDb44R2FzTKHE1AOzvjUVIKMxY/XyVPdw6VSjpbmaYePYiPqxFd8U6pMJED3iMRoTswuorxpOC5ie8/DUtcHKWFNDPRPc8Ahd5UDIFiiKgUKeDZ3SiJF3YzhzYjwFkCVkMPnJzVMd96qeKtVsG2iKTldrjq4Rx2v70gImpl3bTVQJyygs9Y37I+8ryg4oI7F4otNKFcSxivteiRmMf1z5+w5Ew+3Bycfa7P2pHfvHMIOcb2jXZxJ8yj/ZiPv/tC4Y3L8B/vXnOFesbhoAAAAASUVORK5CYII="); }' +
+      '.th-pa-picture { float: right; width: 70px; height: 70px; padding: 5px; text-align: center; }' +
+      '.th-pa-picture img { max-width: 60px; max-height: 60px; }' +
+      '.th-pa-post { float: left; width: 480px; padding: 5px; min-height: 70px; }' +
+      '.th-pa-title { font-weight: bold; }' +
+      '.th-pa-title, .th-pa-content { white-space: pre-line; }' +
+      '.th-pa-ellipsis { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }' +
+      '.th-pa-meta { opacity: 0.6; }' +
+      '#th-pa-table tr:hover .th-pa-meta { opacity: 1; }' +
+      '.th-pa-meta li, #th-pa-filter li { display: inline-block; margin-right: 10px; }' +
+      '.th-pa-expand { float: none; padding: 0px; width: 13px; height: 13px; vertical-align: text-top; }' +
+      '.th-pa-post-link, .th-pa-original-link { float: right; }' +
+      '.th-pa-stealth { display: none !important; }' +
+      '#th-pa-table tr:hover .th-pa-stealth { display: inline-block !important; }'
     ).appendTo( 'head' );
   }
 
