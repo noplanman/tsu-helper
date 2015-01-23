@@ -1,7 +1,7 @@
 #Tsu Helper
 
 - Author: [Armando Lüscher](https://www.tsu.co/noplanman)
-- Version: 2.4 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+- Version: 2.5 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 - Short-Link for sharing: https://j.mp/tsu-helper
 - Disclaimer: Tsu Helper script is in no way affiliated with Tsu LLC. Use it at your [own risk](#known-issues).
 

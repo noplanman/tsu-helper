@@ -1,5 +1,9 @@
 #Change Log
 
+##Version 2.5
+
+- Firefox MutationObserver error fixed.
+
 ##Version 2.4
 
 - Introduced "Posts Archive" on Analytics page.

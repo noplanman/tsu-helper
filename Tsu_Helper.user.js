@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     2.4
+// @version     2.5
 // @copyright   2014-2015 Armando Lüscher
 // @author      Armando Lüscher
 // @oujs:author noplanman
@@ -182,7 +182,7 @@ jQuery( document ).ready(function( $ ) {
    */
   var Updater = {
     // The local version.
-    localVersion : 2.4,
+    localVersion : 2.5,
 
     // The remote version (loaded in the "check" method).
     remoteVersion : null,
@@ -894,7 +894,7 @@ jQuery( document ).ready(function( $ ) {
               for ( var ma = mutation.addedNodes.length - 1; ma >= 0; ma-- ) {
                 var addedNode = mutation.addedNodes[ ma ];
                 // In case the node has no className (e.g. textnode), just ignore it.
-                if ( addedNode.hasOwnProperty( 'className' ) && 'string' === typeof addedNode.className && itemsInArray( addedNode.className.split( ' ' ), classes ) ) {
+                if ( 'className' in addedNode && 'string' === typeof addedNode.className && itemsInArray( addedNode.className.split( ' ' ), classes ) ) {
                   return true;
                 }
               }
@@ -903,13 +903,15 @@ jQuery( document ).ready(function( $ ) {
               for ( var mr = mutation.removedNodes.length - 1; mr >= 0; mr-- ) {
                 var removedNode = mutation.removedNodes[ mr ];
                 // In case the node has no className (e.g. textnode), just ignore it.
-                if ( removedNode.hasOwnProperty( 'className' ) && 'string' === typeof removedNode.className && itemsInArray( removedNode.className.split( ' ' ), classes ) ) {
+                if ( 'className' in removedNode && 'string' === typeof removedNode.className && itemsInArray( removedNode.className.split( ' ' ), classes ) ) {
                   return true;
                 }
               }
+
+              return false;
             }
 
-            //doLog( mutations.length + ' DOM changes.' );
+            doLog( mutations.length + ' DOM changes.' );
             doLog( mutations );
 
             // Only react to changes we're interested in.
