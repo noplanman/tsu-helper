@@ -60,12 +60,10 @@ Changing the privacy setting for each post is also a breeze!
 
 ---
 
-Automatically display the number of Friends (1st number) and Followers (2nd number) a user has, under their user name on certain pages.
+Automatically display the number of Friends (1st number) and Followers (2nd number) a user has, when hovering over a their username link.
 Gain control over who has how many Friends and Followers with a quick glance.
 
-The details get loaded automatically when the page gets loaded and when new posts, comments or messages get added.
-
-FFC works on the Home Feed, User Diary and Messages pages.
+FFC works on the Home Feed, User Diary and Single Post pages, also in the comments.
 
 ![FFC Hover Card][ffc-hover-card]
 - Displaying FFC on a user card when hovering over a username.

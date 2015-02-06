@@ -273,7 +273,6 @@ jQuery( document ).ready(function( $ ) {
         Observer.queryToObserve = ''; // No observer necessary!
       } else if ( $( 'body.messages' ).length ) {          Page.current = 'messages';      // Messages.
         Observer.queryToLoad    = '.messages_content .message_box';
-        Observer.queryToLoadFF  = '.message_box .content';
         Observer.queryToObserve = '.messages_content';
       }
 
@@ -1743,12 +1742,10 @@ jQuery( document ).ready(function( $ ) {
     }
 
     // Add line breaks to all messages.
-    $( '.messages_content .message_box' ).each(function(){
-      if ( ! $( this ).hasClass( 'tsu-helper-tweaked' ) ) {
-        var $text = $( this ).find( '.message-text' );
-        $text.html( $text.html().trim().replace( /(?:\r\n|\r|\n)/g, '<br />' ) );
-        $( this ).addClass( 'tsu-helper-tweaked' );
-      }
+    $( '.messages_content .message_box' ).not( '.tsu-helper-tweaked' ).each(function(){
+      var $text = $( this ).find( '.message-text' );
+      $text.html( $text.html().trim().replace( /(?:\r\n|\r|\n)/g, '<br />' ) );
+      $( this ).addClass( 'tsu-helper-tweaked' );
     });
   }
 
