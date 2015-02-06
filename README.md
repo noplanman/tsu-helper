@@ -1,7 +1,7 @@
 #Tsu Helper
 
 - Author: [Armando Lüscher](https://www.tsu.co/noplanman)
-- Version: 2.5 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
+- Version: 2.6 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
 - Short-Link for sharing: https://j.mp/tsu-helper
 - Disclaimer: Tsu Helper script is in no way affiliated with Tsu LLC. Use it at your [own risk](#known-issues).
 
@@ -38,10 +38,6 @@ NOTE: The Friends and Followers Manager cannot be disabled, as it has no backgro
 - [Emphasize Nested Replies](#make-things-easier-for-the-eye): Emphasize the parent of nested comment replies, to make them more visible.
 - [Check Social Networks](#basic-posting-content-checks): Check if your new post is being shared to your connected Social Network accounts.
 - [Check Max. Hashtags & Mentions](#basic-posting-content-checks): Check if the maximum number of Hashtags & Mentions has been reached before posting.
-- Show [Friends and Followers](#ffc-friends-and-followers-counts): Where to display Friends and Followers counts.
-  - No Links (disabled): Disable this feature.
-  - All Links: Load Friends and Followers counts on all possible links.
-  - Hover Cards Only: Only load the Friends and Followers counts when hovering over the username of a post or comment. (This option still displays counts on all other pages!)
 - [Notifications Reloaded](#notifications-reloaded) count: Choose how many notifications should be shown in the Notifications Popup.
 
 *Buttons*
@@ -64,45 +60,15 @@ Changing the privacy setting for each post is also a breeze!
 
 ---
 
-Automatically display the number of Friends (1st number) and Followers (2nd number) a user has, right next to / under their user name.
+Automatically display the number of Friends (1st number) and Followers (2nd number) a user has, under their user name on certain pages.
 Gain control over who has how many Friends and Followers with a quick glance.
-Furthermore, it generates links to all users displayed on the "Discover Users" page, to make it easier to check out the profiles.
 
 The details get loaded automatically when the page gets loaded and when new posts, comments or messages get added.
 
-FFC works on the Home Feed, User Diary, Messages and Discover Users pages.
-
-![FFC Username][ffc-username]
-- FFC being displayed next to a username.
+FFC works on the Home Feed, User Diary and Messages pages.
 
 ![FFC Hover Card][ffc-hover-card]
 - Displaying FFC on a user card when hovering over a username.
-
-![FFC Discover][ffc-discover]
-- A card on the "Discover Users" page.
-
-###FFM (Friends and Followers Manager)
-
----
-
-***IMPORTANT!*** Check the [known issues](#known-issues) below.
-
----
-
-Take more control of your Friends and Followers, including Friend requests you have sent or received.
-
-Find all the Friends you are also Following. You can then automatically Unfollow all Friends, as doing both is unnecessary and uses up your precious Follows.
-
-To start the FFM, simply visit your Friends, Followers or Following tabs on your Profile and click the "F&F Manager" link.
-
-![FFM Header][ffm-header]
-- Search for pending sent and received Friend Requests.
-- Search for Friends you are also Following.
-- Automatically Unfollow all Friends.
-- Show all found entries and filter them.
-
-![Correct Count][correct-count]
-- Display the correct number of Friends, Followers or users Following you.
 
 ###Quick Mention in comments and replies
 Quick Mention adds easy to use links to each comment or reply, which makes mentioning users a breeze!
@@ -110,12 +76,12 @@ Quick Mention adds easy to use links to each comment or reply, which makes menti
 Mention the user who's post you are commenting on, or the user who's comment you are replying to.
 
 ![Quick Mention for Comment][mention-comment]
-- Simply hover over your profile picture and select the Quick Mention button [@ >].
+- Simply hover over your profile picture and select the Quick Mention button [**@ >**].
 
 Mention any user from the comments list to easily add their mention to your comment or reply.
 
 ![Quick Mention for Reply][mention-reply]
-- First select the comment or reply text input, then hover over the comment of the user you would like to mention and click the Quick Mention button [@ +].
+- First select the comment or reply text input, then hover over the comment of the user you would like to mention and click the Quick Mention button [**@ +**].
 
 ###Auto-focus
 Auto-focusing the correct input fields is a great help to speed up your posting, commenting and messaging.
@@ -157,11 +123,13 @@ Easily access up to 30 most recent Notifications, Messages and Friend Requests. 
 
 ![Notification Popup][notification-popup]
 
-Choose how many notifications you would like to display on the notifications page and filter them by kind of notification and user.
+~~Choose how many notifications you would like to display on the notifications page and~~ filter them by kind of notification and user.
 
 ![Notification Count][notification-count]
 
-NOTE: The limit seems to be around 370, but I've added up to 500 just in case the limitation changes at some point.
+NOTE: The limit has been set to a maximum of 30! I've left the dropdown to choose the amount just in case this limitation changes back.
+
+~~NOTE: The limit seems to be around 370, but I've added up to 500 just in case the limitation changes at some point.~~
 
 ###Stay up to date!
 Whenever a new update is available, you will be notified visually. The username link on the top right will get an orange background and the [About window](#about) will get a new button, making your update just 1 click away.
@@ -185,9 +153,6 @@ Simply choose the plugin that corresponds to your web browser below and download
   - [Get it on OpenUserJS.org](https://openuserjs.org/install/noplanman/Tsu_Helper.user.js)
   - [Get it on GreasyFork](https://greasyfork.org/en/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js)
 
-###~~With Bookmarklet~~
-As of version 1.5 the bookmarklet is not supported any more because the script has become too big!
-
 ##Any ideas / Feature requests / Comments?
 If you have any ideas for me or things you would like to see in this script, go ahead and create a [New Issue](https://github.com/noplanman/tsu-helper/issues/new) and let me know!
 Any comment is highly appreciated, thanks!
@@ -198,15 +163,13 @@ Any comment is highly appreciated, thanks!
 - Opera 26
 
 ##Known Issues
-Using the “Friends and Followers Manager (FFM)“ or the “Friends and Followers Counts (FFC)“ may cause Tsu to become temporarily unavailable. This is due to the amount of information that is being requested from Tsu. Only use the FFM if you don't have that many friends. I'm working hard at making this work for everybody but unfortunately I have my hands tied at the moment, as Tsu has a few restrictions.
-If you do risk it and get a "503 Service Unavailable" message, don't panic. After a few hours maximum, you can access Tsu again.
+Using the “Friends and Followers Counts (FFC)“ may cause Tsu to become temporarily unavailable. This is due to the amount of information that is being requested from Tsu. I'm working hard at making this work for everybody but unfortunately I have my hands tied at the moment, as Tsu has a few restrictions.
+If you do risk it and get a "503 Service Unavailable" message, don't panic. After a few hours maximum, you can access Tsu again. DON'T EMAIL TSU SUPPORT ABOUT 503 ERRORS IF YOU USE THIS SCRIPT!!
 Just be patient =)
 
-Use them at your own risk!
+**Use at your own risk!**
 
 
-[correct-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/correct-count.png "Correct Count"
-[ffm-header]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffm-header.png "FFM Header"
 [mention-comment]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-comment.png "Quick Mention for Comment"
 [mention-reply]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-reply.png "Quick Mention for Reply"
 [nested-replies-parent]: https://github.com/noplanman/tsu-helper/raw/master/assets/nested-replies-parent.png "Emphasize Nested Replies"
@@ -220,9 +183,7 @@ Use them at your own risk!
 [update-notification]: https://github.com/noplanman/tsu-helper/raw/master/assets/update-notification.png "Update Notification"
 [about-window]: https://github.com/noplanman/tsu-helper/raw/master/assets/about-window.png "About window"
 [settings-window]: https://github.com/noplanman/tsu-helper/raw/master/assets/settings-window.png "Settings window"
-[ffc-username]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-username.png "FFC Username"
 [ffc-hover-card]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-hover-card.png "FFC Hover Card"
-[ffc-discover]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-discover.png "FFC Discover"
 [notification-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-count.png "Notification Count"
 [notification-popup]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-popup.png "Notification Popup"
 [posts-archive]: https://github.com/noplanman/tsu-helper/raw/master/assets/posts-archive.png "Posts Archive"

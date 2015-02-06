@@ -4,7 +4,7 @@
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
 // @include     https://*tsu.co*
-// @version     2.5
+// @version     2.6
 // @copyright   2014-2015 Armando Lüscher
 // @author      Armando Lüscher
 // @oujs:author noplanman
@@ -90,7 +90,6 @@ jQuery( document ).ready(function( $ ) {
     settingsDefault : {
       debugLevel    : 'disabled',  // Debugging level. (disabled,[l]og,[i]nfo,[w]arning,[e]rror)
       hideAds       : false,       // Hide all ads.
-      showFFC       : 'hovercard', // Show Friends and Followers count. (disabled,all,hovercard)
       quickMention  : true,        // Add quick mention links.
       emphasizeNRP  : true,        // Emphasize nested replies parents.
       checkSocial   : true,        // Check the social network sharing.
@@ -232,9 +231,6 @@ jQuery( document ).ready(function( $ ) {
     maxHashtags : 10,
     maxMentions : 10,
 
-    // Cards per page request of Friends, Followers and Following tabs.
-    ffmCardsPerPage : 12,
-
     // Texts for all possible notifications.
     kindsTexts : {
       friend_request_accepted              : 'Friend Requests accepted',
@@ -273,17 +269,8 @@ jQuery( document ).ready(function( $ ) {
       } else if ( $( 'body.search_hashtag' ).length ) {    Page.current = 'hashtag';       // Hashtag page.
       } else if ( $( 'body.profile.diary' ).length ) {     Page.current = 'diary';         // Diary.
       } else if ( $( 'body.show_post' ).length ) {         Page.current = 'post';          // Single post.
-      } else if ( $( 'body.discover' ).length ) {          Page.current = 'discover';      // Discover Users.
-        Observer.queryToLoadFF  = 'body.discover .tree_child_fullname';
-        Observer.queryToObserve = ''; // No observer necessary!
       } else if ( $( 'body.dashboard' ).length ) {         Page.current = 'analytics';     // Analytics.
         Observer.queryToObserve = ''; // No observer necessary!
-      } else if ( $( 'body.tree' ).length ) {              Page.current = 'tree';          // Family tree.
-        Observer.queryToLoadFF  = 'body.tree .tree_child_fullname';
-        Observer.queryToObserve = '.tree_page';
-      } else if ( $( 'body.profile.friends' ).length ) {   Page.current = 'friends';       // Friends.
-      } else if ( $( 'body.profile.followers' ).length ) { Page.current = 'followers';     // Followers.
-      } else if ( $( 'body.profile.following' ).length ) { Page.current = 'following';     // Following.
       } else if ( $( 'body.messages' ).length ) {          Page.current = 'messages';      // Messages.
         Observer.queryToLoad    = '.messages_content .message_box';
         Observer.queryToLoadFF  = '.message_box .content';
@@ -293,12 +280,7 @@ jQuery( document ).ready(function( $ ) {
       // Group queries to load.
       if ( Page.is( 'has-posts' ) ) {
         queryToLoad = '.comment';
-        // Add userlinks to query?
-        switch ( settings.showFFC ) {
-          case 'all'       : Observer.queryToLoadFF = '.card .card_sub .info, .evac_user'; break;
-          case 'hovercard' : Observer.queryToLoadFF = '.card .card_sub .info';             break;
-        }
-      } else if ( 'all' === settings.showFFC && Page.is( 'fff' ) ) {
+        // Add userlinks to query.
         Observer.queryToLoadFF = '.card .card_sub .info';
       }
 
@@ -314,9 +296,8 @@ jQuery( document ).ready(function( $ ) {
      */
     is : function( pages ) {
       // To make things easier, allow shortcuts.
-      pages = pages.replace( /has-userlinks/g, 'has-posts fff messages discover tree' );
+      pages = pages.replace( /has-userlinks/g, 'has-posts messages' );
       pages = pages.replace( /has-posts/g, 'home hashtag diary post' );
-      pages = pages.replace( /fff/g, 'friends followers following' );
 
       // Make an array.
       pages = pages.split( ' ' );
@@ -328,352 +309,6 @@ jQuery( document ).ready(function( $ ) {
         }
       }
       return false;
-    }
-  };
-
-
-  /**
-   * Friends and Followers Manager.
-   */
-  var FFM = {
-
-    // The total amount of pages to preload.
-    totalPages : 0,
-
-    // The real number of Friends / Followers / Following.
-    totalFFFs  : 0,
-    $totalFFFs : null,
-
-    // List of active Ajax requests.
-    ajaxRequests : {},
-
-    // The current chain request.
-    $ajaxChainRequest : null,
-
-    // Is the search busy?
-    busy      : false,
-    chainBusy : false,
-
-    // The number of found friend requests.
-    counter : {
-      fandf    : 0,
-      received : 0,
-      sent     : 0
-    },
-    filterCheckboxes : {},
-
-    // The buttons and status text.
-    $linkCancel          : null,
-    $linkStart           : null,
-    $statusText          : null,
-    $linkUnfollowFriends : null,
-
-    /**
-     * Initialise the Friends and Followers Manager.
-     */
-    init : function() {
-      // Make sure we're on the right page.
-      if ( ! Page.is( 'fff' ) ) {
-        return;
-      }
-
-      doLog( 'Loading FF Manager.', 'i' );
-
-      // Only possible on the current users profile.
-      if ( window.current_user.username === $( '.profile_details .summary .username' ).text().trim().substring( 1 ) ) {
-        var $title = $( '.profiles_list .title' );
-
-        // Get the number of pages required to load all users in the list, 12 per page.
-        FFM.totalPages = Math.ceil( /\d+/.exec( $title.text() ) / TSUConst.ffmCardsPerPage ) || 1;
-        doLog( 'Total number of pages to load: ' + FFM.totalPages, 'i' );
-        // As this number isn't totally correct, load all the pages
-        // and chain-load from the last page as far as needed.
-
-        // Real number of FFFs.
-        FFM.$totalFFFs = $( '<span/>', {
-          'id'  : 'th-ffm-total-fffs',
-          title : 'Correct count',
-          html  : '-'
-        })
-        .hide() // Start hidden.
-        .appendTo( $title );
-
-        // Cancel link.
-        FFM.$linkCancel = $( '<a/>', {
-          'id'  : 'th-ffm-link-cancel',
-          title : 'Cancel current search',
-          html  : 'Cancel',
-          click : function() { FFM.cancel(); }
-        })
-        .hide() // Start hidden.
-        .appendTo( $title );
-
-        // Start link.
-        FFM.$linkStart = $( '<a/>', {
-          'id'  : 'th-ffm-link-start',
-          title : 'Search for pending Friend Requests and Friends you also Follow.',
-          html  : 'F&F Manager',
-          click : function() { FFM.start(); }
-        })
-        .appendTo( $title );
-
-        // Status text to display the number of found items.
-        FFM.$statusText = $( '<span/>', {
-          'id' : 'th-ffm-status-text',
-          html :
-            '<label title="Friends also being Followed" class="th-ffm-card-fandf"><span>0</span> F&F</label>&nbsp;' +
-            '<label title="Received Friend Requests" class="th-ffm-card-received"><span>0</span> received</label>&nbsp;' +
-            '<label title="Sent Friend Requests" class="th-ffm-card-sent"><span>0</span> sent</label>'
-        })
-        .hide() // Start hidden.
-        .appendTo( $title );
-
-        // Assign checkbox clicks to show / hide results.
-        $( '<input/>', { 'id' : 'th-ffm-cb-fandf',    type : 'checkbox', checked : 'checked' } ).change( function() { FFM.filter( 'fandf',    this.checked ); } ).prependTo( FFM.$statusText.find( '.th-ffm-card-fandf' ) );
-        $( '<input/>', { 'id' : 'th-ffm-cb-received', type : 'checkbox', checked : 'checked' } ).change( function() { FFM.filter( 'received', this.checked ); } ).prependTo( FFM.$statusText.find( '.th-ffm-card-received' ) );
-        $( '<input/>', { 'id' : 'th-ffm-cb-sent',     type : 'checkbox', checked : 'checked' } ).change( function() { FFM.filter( 'sent',     this.checked ); } ).prependTo( FFM.$statusText.find( '.th-ffm-card-sent' ) );
-
-        FFM.$linkUnfollowFriends = $( '<a/>', {
-          'id'  : 'th-ffm-unfollow-friends',
-          title : 'Unfollow all Friends on this page',
-          html  : 'unfollow',
-          click : function() { FFM.unfollowFriends(); }
-        })
-        .hide() // Start hidden.
-        .prependTo( FFM.$statusText );
-      }
-    },
-
-    /**
-     * Update the status text counts.
-     * @param  {string} type The type of card to count.
-     */
-    updateStatus : function( type ) {
-      if ( null === type ) {
-        FFM.$statusText.find( 'span' ).html( '0' );
-        FFM.$totalFFFs.html( '-' );
-        return;
-      }
-      FFM.$statusText.find( '.th-ffm-card-' + type + ' span' ).html( ++FFM.counter[ type ] );
-    },
-
-    /**
-     * Call getPage but with a delay to prevent flooding the server.
-     * @param  {integer} delay   Delay in ms.
-     * @param  {integer} pageNr  The page number to get.
-     * @param  {boolean} isChain If this a chain request, continue getting consecutive pages.
-     */
-    getPageDelay : function( delay, pageNr, isChain ) {
-      setTimeout( function() { FFM.getPage( pageNr, isChain ); }, delay );
-    },
-
-    /**
-     * Get a page of Follower/Following cards.
-     * @param  {integer} pageNr  The page number to get.
-     * @param  {boolean} isChain If this a chain request, continue getting consecutive pages.
-     */
-    getPage : function( pageNr, isChain ) {
-      // Has the user cancelled the chain?
-      if ( isChain && ! FFM.chainBusy ) {
-        doLog( 'Jumped out of chain.', 'i' );
-        return;
-      }
-
-      // Make sure we have a valid page number.
-      if ( pageNr < 1 ) {
-        doLog( 'Invalid page number:' + pageNr, 'e' );
-        return;
-      }
-
-      doLog( 'Getting page ' + pageNr, 'l' );
-
-      var fetch_url = '/users/profiles/users_list/' + window.current_user.id + '/' + Page.current + '/' + pageNr;
-
-      var $ajaxCurrentRequest = $.get( fetch_url, function( data ) {
-        // Get all the cards.
-        var $cards = $( data ).siblings( '.card' );
-
-        // If we have only 1 card, there are no siblings, so get the card itself.
-        if ( 0 === $cards.length ) {
-          $cards = $( data );
-        }
-
-        // Count each card to determine correct total count.
-        FFM.totalFFFs += $cards.length;
-        FFM.$totalFFFs.html( FFM.totalFFFs );
-
-        if ( $cards.length ) {
-          // Flag each card and add to stack.
-          $cards.each(function() {
-            var $card = $( this );
-
-            // Is this card a friend?
-            var $friendButton = $card.find( '.friend_button.grey' );
-            if ( $friendButton.length ) {
-
-              var $followButton = $card.find( '.follow_button.grey' );
-              var type;
-              // Find only respond and request links. Also show cards that are friends and following.
-              if ( $friendButton.hasClass( 'friend_request_box' ) ) {
-                type = 'received';
-              } else if ( $friendButton.attr( 'href' ).contains( '/cancel/' ) ) {
-                type = 'sent';
-              } else if ( $followButton.length ) {
-                type = 'fandf';
-              } else {
-                // Next card.
-                return;
-              }
-
-              // Add card and update the status text.
-              $( '.profiles_list .card:not(.th-ffm-card):first' ).before( $card.addClass( 'th-ffm-card th-ffm-card-' + type ) );
-              FFM.updateStatus( type );
-            }
-          });
-        }
-
-        // Are there more pages to load?
-        if ( isChain ) {
-          if ( $( data ).siblings( '.loadmore_profile' ).length ) {
-            // Get the next page.
-            FFM.getPage( pageNr + 1, true );
-          } else {
-            doLog( 'Chain completed on page ' + pageNr, 'i' );
-            FFM.chainBusy = false;
-          }
-        }
-      })
-      .fail(function( xhr, status, error ) {
-        if ( 'abort' === status ) {
-          doLog( 'Aborted page ' + pageNr, 'e' );
-        } else {
-          doLog( 'Error on page ' + pageNr + '! (' + status + ':' + error + ')', 'e' );
-        }
-      })
-      .always(function() {
-        doLog( 'Finished page ' + pageNr, 'l' );
-        // After the request is complete, remove it from the array.
-        delete FFM.ajaxRequests[ pageNr ];
-        FFM.checkIfFinished();
-      });
-
-      // If this is a chain request, set the $ajaxChainRequest variable.
-      // If not, add it to the requests array.
-      if ( isChain ) {
-        FFM.$ajaxChainRequest = $ajaxCurrentRequest;
-      } else {
-        FFM.ajaxRequests[ pageNr ] = $ajaxCurrentRequest;
-      }
-    },
-
-    /**
-     * Check if the Friend Request search is finished.
-     */
-    checkIfFinished : function() {
-      var activeRequests = Object.keys( FFM.ajaxRequests ).length;
-      doLog( activeRequests + ' pages left.', 'l' );
-
-      // If no chain is active and the requests are completed, we're finished!
-      if ( ! FFM.chainBusy && 0 === activeRequests ) {
-        FFM.finished();
-      }
-    },
-
-    /**
-     * Start the FFM.
-     */
-    start : function() {
-      if ( ! confirm( 'WARNING: This may temporarily block access to Tsu!\n\nAre you really sure you want to start the F&F Manager?' ) ) {
-        return;
-      }
-
-      FFM.busy = FFM.chainBusy = true;
-      FFM.totalFFFs = FFM.counter.received = FFM.counter.sent = FFM.counter.fandf = 0;
-      FFM.updateStatus( null );
-      FFM.$statusText.find( 'input' ).attr( 'disabled', true ).prop( 'checked', true );
-      FFM.$statusText.show();
-      FFM.$totalFFFs.show();
-      FFM.$linkUnfollowFriends.hide();
-
-      // Clear any previous results.
-      $( '.th-ffm-card' ).remove();
-
-      // Load all pages and start the chain loading on the last page.
-      for ( var i = FFM.totalPages; i >= 1; i-- ) {
-        FFM.getPageDelay( 50, i, i === FFM.totalPages );
-      }
-
-      FFM.$linkStart.hide();
-      FFM.$linkCancel.show();
-    },
-
-
-    /**
-     * Cancel the FFM.
-     */
-    cancel : function() {
-      // Call finished with the cancelled parameter.
-      FFM.finished( true );
-    },
-
-    /**
-     * Finish off the FFM.
-     * @param  {boolean} cancelled If the FFM has been cancelled.
-     */
-    finished : function( cancelled ) {
-      FFM.busy = FFM.chainBusy = false;
-      FFM.$statusText.find( 'input' ).removeAttr( 'disabled' );
-
-      // If followed riends are found, show the "unfollow" button.
-      if ( FFM.counter.fandf ) {
-        FFM.$linkUnfollowFriends.show();
-      }
-
-      if ( cancelled ) {
-        // Abort all AJAX requests.
-        for ( var page in FFM.ajaxRequests ) {
-          FFM.ajaxRequests[ page ].abort();
-          delete FFM.ajaxRequests[ page ];
-        }
-
-        // Abort the current AJAX chain request.
-        FFM.$ajaxChainRequest.abort();
-
-        // The total number is incomplete, so hide it.
-        FFM.$totalFFFs.hide();
-      }
-
-      FFM.$linkCancel.hide();
-      FFM.$linkStart.show();
-    },
-
-    /**
-     * Display / Hide certain categories.
-     * @param  {string}  type  The type of cards to display / hide.
-     * @param  {boolean} state True: display, False: hide.
-     */
-    filter : function( type, state ) {
-      if ( state ) {
-        $( '.th-ffm-card.th-ffm-card-' + type ).show();
-      } else {
-        $( '.th-ffm-card.th-ffm-card-' + type ).hide();
-      }
-    },
-
-    /**
-     * Automatically Unfollow all the loaded Friends.
-     */
-    unfollowFriends : function() {
-      var $toUnfollow = $( '.th-ffm-card.th-ffm-card-fandf .follow_button.grey' );
-      if ( $toUnfollow.length && confirm( 'WARNING: This may temporarily block access to Tsu!\n\nAre you really sure you want to Unfollow all ' + $toUnfollow.length + ' Friends on this page?\nThey will still be your Friends.\n\n(this cannot be undone and may take some time, be patient)' ) ) {
-        var unfollowed = 0;
-        $toUnfollow.each(function() {
-          this.click();
-          unfollowed++;
-        });
-        FFM.$linkUnfollowFriends.hide();
-        alert( unfollowed + ' Friends have been Unfollowed!');
-      }
     }
   };
 
@@ -925,7 +560,7 @@ jQuery( document ).ready(function( $ ) {
 
               // Run all functions responding to DOM updates.
               // When loading a card, only if it's not a hover card, as those get loaded above.
-              if ( mutationNodesHaveClass( mutations[ m ], 'post comment message_content_feed message_box tree_bar tree_child_wrapper' )
+              if ( mutationNodesHaveClass( mutations[ m ], 'post comment message_content_feed message_box' )
                 || ( mutationNodesHaveClass( mutations[ m ], 'card' ) && $hoverCard.length === 0 ) ) {
                 FFC.loadAll();
                 QM.load();
@@ -952,7 +587,6 @@ jQuery( document ).ready(function( $ ) {
 
           if ( Page.is( 'has-userlinks' ) ) {
             waitForKeyElements( Observer.queryToLoad, FFC.loadAll() );
-            //waitForKeyElements( Observer.queryToLoad, delayLoadFriendsAndFollowers );
           }
           if ( Page.is( 'has-posts' ) ) {
             waitForKeyElements( Observer.queryToLoad, QM.load );
@@ -1378,7 +1012,7 @@ jQuery( document ).ready(function( $ ) {
       $userLink.after( $userLinkSpan );
 
       // Special case for these pages, to make it look nicer and fitting.
-      if ( onHoverCard || Page.is( 'fff discover tree' ) ) {
+      if ( onHoverCard ) {
         $userLinkSpan.before( '<br class="th-ffc-br" />' );
       }
 
@@ -1386,8 +1020,8 @@ jQuery( document ).ready(function( $ ) {
       var userName = $userLink.text().trim();
       var userUrl  = $userLink.attr( 'href' );
 
-      // Extract the userID from the url. Special case for discover page!
-      var userID = ( Page.is( 'discover' ) ) ? $userElement.attr( 'user_id' ) : userUrl.split( '/' )[1];
+      // Extract the userID from the url.
+      var userID = userUrl.split( '/' )[1];
 
       // Check if the current user has already been loaded.
       var userObject = Users.getUserObject( userID, true );
@@ -1459,10 +1093,6 @@ jQuery( document ).ready(function( $ ) {
      * @param  {jQuery} $userHoverCard Hover card selector.
      */
     loadUserHoverCard : function( $userHoverCard ) {
-      if ( 'disabled' === settings.showFFC ) {
-        return;
-      }
-
       var t = this;
       // As long as the hover tooltip exists but the card inside it doesn't, loop and wait till it's loaded.
       if ( $( '.tooltipster-user-profile' ).length && $userHoverCard.length === 0 ) {
@@ -1482,50 +1112,18 @@ jQuery( document ).ready(function( $ ) {
      * @param {boolean} clean Delete saved details and refetch all.
      */
     loadAll : function( clean ) {
-      if ( 'disabled' === settings.showFFC || ( 'hovercard' === settings.showFFC && Page.is( 'has-posts' ) ) ) {
+      if ( Page.is( 'has-posts' ) ) {
         return;
       }
 
-      if ( clean ) {
-        if ( confirm( 'Reload all Friend and Follower details of all users on the current page?' ) ) {
-          doLog( '(clean) Start loading Friends and Followers.', 'i' );
-
-          // Reset list.
-          Users.userObjects = {};
-
-          // Remove all existing user links spans and brs.
-          $( '.th-ffc-span, .th-ffc-br' ).remove();
-          $( '.ffc-processed' ).removeClass( 'ffc-processed' );
-        } else {
-          return;
-        }
-      } else {
-        doLog( 'Start loading Friends and Followers.', 'i' );
-      }
-
-      // Special case for "Discover Users", convert all the usernames to links.
-      if ( Page.is( 'discover' ) ) {
-        $( '#discover .user_card_1_wrapper' ).each(function() {
-          var $convertToLinks = $( this ).find( '.tree_child_fullname, .tree_child_coverpicture, .tree_child_profile_image' );
-
-          // Get the last part of the "Follow" button link, which is the numerical user ID.
-          var userID = $( this ).find( '.follow_button' ).attr( 'href' ).split( '/' ).pop();
-
-          if ( userID ) {
-            // Make the username and profile images a link to the profile.
-            $convertToLinks.each(function() {
-              // Wrap each item in a link and add the user ID which we need for FFC.
-              $( this ).attr( 'user_id', userID ).wrapInner( '<a href="/users/' + userID + '"></a>' );
-            });
-          }
-        });
-      }
+      doLog( 'Start loading Friends and Followers.', 'i' );
 
       // Find all users and process them.
       var $newUserLinks = $( Observer.queryToLoadFF ).not( '.ffc-processed' );
 
       doLog( 'New user links found: ' + $newUserLinks.length );
 
+      // Load all userlinks.
       $newUserLinks.each(function() {
         var $userElement = $( this );
 
@@ -1585,7 +1183,6 @@ jQuery( document ).ready(function( $ ) {
   QM.load();
   emphasizeNestedRepliesParents();
   tweakMessagesPage();
-  FFM.init();
 
 
   // Load Notifications Reloaded?
@@ -2214,13 +1811,6 @@ jQuery( document ).ready(function( $ ) {
       '.post_comment { position: relative; }';
     }
 
-    // Friends and Followers
-    if ( 'disabled' !== settings.showFFC ) {
-      settingSpecificCSS +=
-      '.th-ffc-span .th-ffc-loader-wheel { margin-left: 5px; height: 12px; }' +
-      '.th-ffc-span a { font-size: smaller; margin-left: 5px; border-radius: 3px; background-color: #1abc9c; color: #fff !important; padding: 1px 3px; font-weight: bold; }' +
-      '.user_card_1_wrapper .tree_child_fullname { height: 32px !important; }';
-    }
 
     // Add the styles to the head.
     $( '<style>' ).html(
@@ -2231,18 +1821,9 @@ jQuery( document ).ready(function( $ ) {
       '#th-menuitem-about a { background-color: #1ea588; color: #fff !important; width: 100% !important; padding: 8px !important; box-sizing: border-box; text-align: center; }' +
       '#th-menuitem-about a:hover { background-color: #1ea588 !important; }' +
 
-      // FFM.
-      '#th-ffm-unfollow-friends{ background: #dc3a50; color: #fff; font-size: .8em; }' +
-      '#th-ffm-total-fffs { background: #090; color: #fff; margin-left: 8px !important; }' +
-      '#th-ffm-link-start, #th-ffm-link-cancel { float: right; padding: 2px; }' +
-      '#th-ffm-link-cancel { background: url(/assets/loader.gif) no-repeat; padding-left: 24px; }' +
-      '#th-ffm-status-text { float: right; margin-right: 8px; }' +
-      '#th-ffm-status-text label, #th-ffm-total-fffs, #th-ffm-unfollow-friends { padding: 2px 5px; border-radius: 3px; border: 1px solid rgba(0,0,0,.5); margin: -1px; }' +
-      '#th-ffm-status-text input { margin: 0 5px 0 2px; }' +
-      '#th-ffm-status-text * { display: inline-block; cursor: pointer; }' +
-      '.th-ffm-card-received { background: #cfc; }' +
-      '.th-ffm-card-sent { background: #eef; }' +
-      '.th-ffm-card-fandf { background: #ffc; }' +
+      // FFC.
+      '.th-ffc-span .th-ffc-loader-wheel { margin-left: 5px; height: 12px; }' +
+      '.th-ffc-span a { font-size: smaller; margin-left: 5px; border-radius: 3px; background-color: #1abc9c; color: #fff !important; padding: 1px 3px; font-weight: bold; }' +
 
       // About & Settings windows.
       '#th-aw,    #th-sw    { width: 400px; height: auto; }' +
@@ -2430,15 +2011,6 @@ jQuery( document ).ready(function( $ ) {
       'id' : 'th-settings-form',
       html :
         checkboxSettings +=
-
-        // FFC.
-        '<div><label>Show Friends and Followers on ' +
-          '<select name="showFFC">' +
-            '<option value="disabled"' + selected( 'disabled', settings.showFFC ) + '>No Links (disabled)</option>' +
-            '<option value="all"' + selected( 'all', settings.showFFC ) + '>All Links</option>' +
-            '<option value="hovercard"' + selected( 'hovercard', settings.showFFC ) + '>Hover Cards Only</option>' +
-          '</select>' +
-        '</label><i class="th-icon th-icon-help th-sw-help" title="Where to display Friends and Followers counts."></i></div>' +
 
         // Notifications Reloaded
         '<div><label>Notifications Reloaded count: ' +

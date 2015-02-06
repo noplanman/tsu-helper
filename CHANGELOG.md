@@ -1,5 +1,10 @@
 #Change Log
 
+##Version 2.6
+
+- Removed FFM.
+- FFC is now only available on hovercards.
+
 ##Version 2.5
 
 - Firefox MutationObserver error fixed.
