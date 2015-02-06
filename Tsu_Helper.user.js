@@ -181,7 +181,7 @@ jQuery( document ).ready(function( $ ) {
    */
   var Updater = {
     // The local version.
-    localVersion : 2.5,
+    localVersion : 2.6,
 
     // The remote version (loaded in the "check" method).
     remoteVersion : null,
