@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name        Tsu Helper
+// @name        Tsu Helper Legacy
 // @namespace   tsu-helper
 // @description Tsu script that adds a bunch of tweaks to make Tsu more user friendly.
 // @include     http://*tsu.co*
@@ -14,7 +14,8 @@
 // ==/UserScript==
 
 /**
- * For changelog see https://j.mp/tsu-helper-changelog
+ * This is the legacy version set at version 2.5.
+ * There is no update feature and it's only available for the brave ones out there ;-)
  */
 
 /**
@@ -175,53 +176,6 @@ jQuery( document ).ready(function( $ ) {
   };
   // Load settings from cookie.
   var settings = Settings.load();
-
-
-  /**
-   * All updater and version related variables.
-   */
-  var Updater = {
-    // The local version.
-    localVersion : 2.5,
-
-    // The remote version (loaded in the "check" method).
-    remoteVersion : null,
-
-    // URL where to get the newest script.
-    scriptURL : 'https://openuserjs.org/install/noplanman/Tsu_Helper.user.js',
-
-    // Version details.
-    versionAPIURL : 'https://api.github.com/repos/noplanman/tsu-helper/contents/VERSION',
-
-    // Get the remote version on GitHub.
-    init : function() {
-      try {
-        var response = $.ajax({
-          type: 'GET',
-          url: Updater.versionAPIURL,
-          async: false
-        }).fail(function() {
-          doLog( 'Couldn\'t get remote version number for Tsu Helper.', 'w' );
-        }).responseJSON;
-
-        // Set the remote version.
-        Updater.remoteVersion = parseFloat( base64_decode( response.content ) );
-        doLog( 'Versions: Local (' + Updater.localVersion + '), Remote (' + Updater.remoteVersion + ')', 'i' );
-      } catch( e ) {
-        doLog( 'Couldn\'t get remote version number for Tsu Helper.', 'w' );
-      }
-    },
-
-    /**
-     * Is there a newer version available?
-     * @return {Boolean} If there is a newer version available.
-     */
-    hasUpdate : function() {
-      return ( Updater.remoteVersion > Updater.localVersion );
-    }
-  };
-  // Initialise the updater to fetch the remote version.
-  Updater.init();
 
 
   /**
@@ -2361,7 +2315,7 @@ jQuery( document ).ready(function( $ ) {
         '<h1>About Tsu Helper</h1>' +
         '<div class="th-about-love"><i class="th-icon th-icon-heart"></i>Made with love and care.</div>' +
         '<div><ul class="th-aw-info">' +
-          '<li>Version <strong>' + Updater.localVersion + '</strong> (<a href="https://j.mp/tsu-helper-changelog" target="_blank">changelog</a>)<br />' +
+          '<li>Version <strong>2.5 Legacy</strong> (<a href="https://j.mp/tsu-helper-changelog" target="_blank">changelog</a>)<br />' +
           '<li>&copy;2014-2015 Armando L&uuml;scher (<a href="/noplanman">@noplanman</a>)<br />' +
           '<li><em>Disclaimer</em>: Tsu Helper is in no way affiliated with Tsu LLC.' +
           '<li>Use it at your own risk.' +
@@ -2535,24 +2489,6 @@ jQuery( document ).ready(function( $ ) {
     .appendTo( $aboutWindow.find( 'h1' ) );
 
 
-    // Check if there is a newer version available.
-    if ( Updater.hasUpdate() ) {
-      $( '<a/>', {
-        'id'  : 'th-aw-update-button',
-        class : 'button th-update',
-        title : 'Update Tsu Helper to the newest version (' + Updater.remoteVersion + ')',
-        href  : Updater.scriptURL,
-        html  : 'New Version!',
-        click : function() {
-          if ( ! confirm( 'Upgrade to the newest version (' + Updater.remoteVersion + ')?\n\n(refresh this page after the script has been updated)' ) ) {
-            return false;
-          }
-        }
-      })
-      .attr( 'target', '_blank' ) // Open in new window / tab.
-      .appendTo( $aboutWindow.find( 'h1' ) );
-    }
-
     // Link in the menu that opens the about window.
     var $aboutWindowLink = $( '<a/>', {
       title : 'About noplanman\'s Tsu Helper',
@@ -2565,13 +2501,6 @@ jQuery( document ).ready(function( $ ) {
         $.fancybox( $aboutWindow );
       }
     });
-
-    // Check if there is a newer version available.
-    if ( Updater.hasUpdate() ) {
-      // Change the background color of the name tab on the top right.
-      $( '#navBarHead .tab.name' ).addClass( 'th-update' );
-      $aboutWindowLink.addClass( 'th-update' );
-    }
 
     // Add "About" menu item.
     $( '<li/>', { 'id' : 'th-menuitem-about', html : $aboutWindowLink } )

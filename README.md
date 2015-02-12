@@ -1,17 +1,26 @@
 #Tsu Helper
 
 - Author: [Armando Lüscher](https://www.tsu.co/noplanman)
-- Version: 2.5 ([changelog](https://github.com/noplanman/tsu-helper/blob/master/CHANGELOG.md))
-- Short-Link for sharing: https://j.mp/tsu-helper
+- Version: 2.5 Legacy ([changelog](https://github.com/noplanman/tsu-helper/blob/legacy/CHANGELOG.md))
 - Disclaimer: Tsu Helper script is in no way affiliated with Tsu LLC. Use it at your [own risk](#known-issues).
 
 ---
 
-I encourage you to read about the features and especially the [known issues](#known-issues) first.
+Since this is the legacy version, you **must** read the ***Known Issues*** first!
 
-If you feel sure about what you're doing, you can skip ahead to the [installation](#installation) and get started with the Tsu Helper :-)
+If you're looking for the most up-to-date official version, look [here](https://j.mp/tsu-helper-readme).
 
 ---
+
+
+##Known Issues
+Using the “Friends and Followers Manager (FFM)“ or the “Friends and Followers Counts (FFC)“ may cause Tsu to become temporarily unavailable. This is due to the amount of information that is being requested from Tsu. Only use the FFM if you don't have that many friends. I'm working hard at making this work for everybody but unfortunately I have my hands tied at the moment, as Tsu has a few restrictions.
+If you do risk it and get a "503 Service Unavailable" message, don't panic. After a few hours maximum, you can access Tsu again.
+
+**DON'T EMAIL TSU SUPPORT ABOUT 503 ERRORS IF YOU ARE USING THIS SCRIPT!!** Just be patient =)
+
+Use at your own risk!
+
 
 ##Details
 The Tsu Helper script adds a bunch of tweaks to make your Tsu experience more user friendly.
@@ -197,32 +206,25 @@ Any comment is highly appreciated, thanks!
 - Chrome 39
 - Opera 26
 
-##Known Issues
-Using the “Friends and Followers Manager (FFM)“ or the “Friends and Followers Counts (FFC)“ may cause Tsu to become temporarily unavailable. This is due to the amount of information that is being requested from Tsu. Only use the FFM if you don't have that many friends. I'm working hard at making this work for everybody but unfortunately I have my hands tied at the moment, as Tsu has a few restrictions.
-If you do risk it and get a "503 Service Unavailable" message, don't panic. After a few hours maximum, you can access Tsu again.
-Just be patient =)
 
-Use them at your own risk!
-
-
-[correct-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/correct-count.png "Correct Count"
-[ffm-header]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffm-header.png "FFM Header"
-[mention-comment]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-comment.png "Quick Mention for Comment"
-[mention-reply]: https://github.com/noplanman/tsu-helper/raw/master/assets/mention-reply.png "Quick Mention for Reply"
-[nested-replies-parent]: https://github.com/noplanman/tsu-helper/raw/master/assets/nested-replies-parent.png "Emphasize Nested Replies"
-[open-single-post]: https://github.com/noplanman/tsu-helper/raw/master/assets/open-single-post.png "Open Single Post"
-[auto-focus-title]: https://github.com/noplanman/tsu-helper/raw/master/assets/auto-focus-title.png "Auto-Focus Title"
-[message-line-breaks]: https://github.com/noplanman/tsu-helper/raw/master/assets/message-line-breaks.png "Message Line Breaks"
-[popup-mention-hashtag-limits]: https://github.com/noplanman/tsu-helper/raw/master/assets/popup-mention-hashtag-limits.png "Popup: Mention or Hashtag Limits Exceeded"
-[popup-social-networks]: https://github.com/noplanman/tsu-helper/raw/master/assets/popup-social-networks.png "Popup: Social Network Sharing Reminder"
-[menu-item]: https://github.com/noplanman/tsu-helper/raw/master/assets/menu-item.png "Menu item"
-[menu-item-update]: https://github.com/noplanman/tsu-helper/raw/master/assets/menu-item-update.png "Menu item has update"
-[update-notification]: https://github.com/noplanman/tsu-helper/raw/master/assets/update-notification.png "Update Notification"
-[about-window]: https://github.com/noplanman/tsu-helper/raw/master/assets/about-window.png "About window"
-[settings-window]: https://github.com/noplanman/tsu-helper/raw/master/assets/settings-window.png "Settings window"
-[ffc-username]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-username.png "FFC Username"
-[ffc-hover-card]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-hover-card.png "FFC Hover Card"
-[ffc-discover]: https://github.com/noplanman/tsu-helper/raw/master/assets/ffc-discover.png "FFC Discover"
-[notification-count]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-count.png "Notification Count"
-[notification-popup]: https://github.com/noplanman/tsu-helper/raw/master/assets/notification-popup.png "Notification Popup"
-[posts-archive]: https://github.com/noplanman/tsu-helper/raw/master/assets/posts-archive.png "Posts Archive"
+[correct-count]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/correct-count.png "Correct Count"
+[ffm-header]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/ffm-header.png "FFM Header"
+[mention-comment]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/mention-comment.png "Quick Mention for Comment"
+[mention-reply]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/mention-reply.png "Quick Mention for Reply"
+[nested-replies-parent]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/nested-replies-parent.png "Emphasize Nested Replies"
+[open-single-post]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/open-single-post.png "Open Single Post"
+[auto-focus-title]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/auto-focus-title.png "Auto-Focus Title"
+[message-line-breaks]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/message-line-breaks.png "Message Line Breaks"
+[popup-mention-hashtag-limits]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/popup-mention-hashtag-limits.png "Popup: Mention or Hashtag Limits Exceeded"
+[popup-social-networks]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/popup-social-networks.png "Popup: Social Network Sharing Reminder"
+[menu-item]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/menu-item.png "Menu item"
+[menu-item-update]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/menu-item-update.png "Menu item has update"
+[update-notification]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/update-notification.png "Update Notification"
+[about-window]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/about-window.png "About window"
+[settings-window]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/settings-window.png "Settings window"
+[ffc-username]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/ffc-username.png "FFC Username"
+[ffc-hover-card]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/ffc-hover-card.png "FFC Hover Card"
+[ffc-discover]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/ffc-discover.png "FFC Discover"
+[notification-count]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/notification-count.png "Notification Count"
+[notification-popup]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/notification-popup.png "Notification Popup"
+[posts-archive]: https://github.com/noplanman/tsu-helper/raw/legacy/assets/posts-archive.png "Posts Archive"

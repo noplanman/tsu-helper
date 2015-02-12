@@ -1,5 +1,9 @@
 #Change Log
 
+##Version 2.5 Legacy
+
+- Legacy version 2.5 released.
+
 ##Version 2.5
 
 - Firefox MutationObserver error fixed.
