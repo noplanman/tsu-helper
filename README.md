@@ -69,7 +69,7 @@ Changing the privacy setting for each post is also a breeze!
 
 ---
 
-***IMPORTANT!*** Check the [known issues](#known-issues) below.
+***IMPORTANT!*** Check the [known issues](#known-issues) above.
 
 ---
 
@@ -94,7 +94,7 @@ FFC works on the Home Feed, User Diary, Messages and Discover Users pages.
 
 ---
 
-***IMPORTANT!*** Check the [known issues](#known-issues) below.
+***IMPORTANT!*** Check the [known issues](#known-issues) above.
 
 ---
 
@@ -190,9 +190,8 @@ Simply choose the plugin that corresponds to your web browser below and download
   - **Opera**: Install the [ViolentMonkey](https://addons.opera.com/en/extensions/details/violent-monkey/) extension.
   - **Safari** & **Internet Explorer**: *NOT SUPPORTED!*
 
-2. Tsu Helper script can be found here (just choose any one)
-  - [Get it on OpenUserJS.org](https://openuserjs.org/install/noplanman/Tsu_Helper.user.js)
-  - [Get it on GreasyFork](https://greasyfork.org/en/scripts/6372-tsu-helper/code/Tsu%20Helper.user.js)
+2. Tsu Helper script can be found here
+  - [Get it on GitHub](https://github.com/noplanman/tsu-helper/raw/legacy/Tsu_Helper.user.js)
 
 ###~~With Bookmarklet~~
 As of version 1.5 the bookmarklet is not supported any more because the script has become too big!
