@@ -227,9 +227,6 @@ jQuery( document ).ready(function( $ ) {
       } else if ( $( 'body.search_hashtag' ).length ) {    Page.current = 'hashtag';       // Hashtag page.
       } else if ( $( 'body.profile.diary' ).length ) {     Page.current = 'diary';         // Diary.
       } else if ( $( 'body.show_post' ).length ) {         Page.current = 'post';          // Single post.
-      } else if ( $( 'body.discover' ).length ) {          Page.current = 'discover';      // Discover Users.
-        Observer.queryToLoadFF  = 'body.discover .tree_child_fullname';
-        Observer.queryToObserve = ''; // No observer necessary!
       } else if ( $( 'body.dashboard' ).length ) {         Page.current = 'analytics';     // Analytics.
         Observer.queryToObserve = ''; // No observer necessary!
       } else if ( $( 'body.tree' ).length ) {              Page.current = 'tree';          // Family tree.
@@ -268,7 +265,7 @@ jQuery( document ).ready(function( $ ) {
      */
     is : function( pages ) {
       // To make things easier, allow shortcuts.
-      pages = pages.replace( /has-userlinks/g, 'has-posts fff messages discover tree' );
+      pages = pages.replace( /has-userlinks/g, 'has-posts fff messages tree' );
       pages = pages.replace( /has-posts/g, 'home hashtag diary post' );
       pages = pages.replace( /fff/g, 'friends followers following' );
 
@@ -1332,7 +1329,7 @@ jQuery( document ).ready(function( $ ) {
       $userLink.after( $userLinkSpan );
 
       // Special case for these pages, to make it look nicer and fitting.
-      if ( onHoverCard || Page.is( 'fff discover tree' ) ) {
+      if ( onHoverCard || Page.is( 'fff tree' ) ) {
         $userLinkSpan.before( '<br class="th-ffc-br" />' );
       }
 
@@ -1340,8 +1337,8 @@ jQuery( document ).ready(function( $ ) {
       var userName = $userLink.text().trim();
       var userUrl  = $userLink.attr( 'href' );
 
-      // Extract the userID from the url. Special case for discover page!
-      var userID = ( Page.is( 'discover' ) ) ? $userElement.attr( 'user_id' ) : userUrl.split( '/' )[1];
+      // Extract the userID from the url.
+      var userID = userUrl.split( '/' )[1];
 
       // Check if the current user has already been loaded.
       var userObject = Users.getUserObject( userID, true );
@@ -1455,24 +1452,6 @@ jQuery( document ).ready(function( $ ) {
         }
       } else {
         doLog( 'Start loading Friends and Followers.', 'i' );
-      }
-
-      // Special case for "Discover Users", convert all the usernames to links.
-      if ( Page.is( 'discover' ) ) {
-        $( '#discover .user_card_1_wrapper' ).each(function() {
-          var $convertToLinks = $( this ).find( '.tree_child_fullname, .tree_child_coverpicture, .tree_child_profile_image' );
-
-          // Get the last part of the "Follow" button link, which is the numerical user ID.
-          var userID = $( this ).find( '.follow_button' ).attr( 'href' ).split( '/' ).pop();
-
-          if ( userID ) {
-            // Make the username and profile images a link to the profile.
-            $convertToLinks.each(function() {
-              // Wrap each item in a link and add the user ID which we need for FFC.
-              $( this ).attr( 'user_id', userID ).wrapInner( '<a href="/users/' + userID + '"></a>' );
-            });
-          }
-        });
       }
 
       // Find all users and process them.
